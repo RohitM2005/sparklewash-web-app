@@ -1,0 +1,130 @@
+import React, { useMemo } from "react";
+import { motion } from "framer-motion";
+import {
+  format, startOfMonth, endOfMonth, eachDayOfInterval,
+  isToday, isBefore, startOfDay,
+} from "date-fns";
+import { CheckCircle2, X, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+
+export default function WashCalendar({ washRecords = [], currentMonth, onMonthChange }) {
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  const washMap = useMemo(() => {
+    const map = {};
+    washRecords.forEach((r) => {
+      const key = format(new Date(r.wash_date), "yyyy-MM-dd");
+      map[key] = r.status;
+    });
+    return map;
+  }, [washRecords]);
+
+  const getWashStatus = (date) => {
+    const key = format(date, "yyyy-MM-dd");
+    return washMap[key] || null;
+  };
+
+  const getStatusIcon = (status) => {
+    const size = "w-2.5 h-2.5 sm:w-3.5 sm:h-3.5";
+    switch (status) {
+      case "completed": return <CheckCircle2 className={`${size} text-green-500`} />;
+      case "skipped":
+      case "cancelled": return <X className={`${size} text-red-500`} />;
+      case "scheduled": return <Clock className={`${size} text-blue-500`} />;
+      default: return null;
+    }
+  };
+
+  const prevMonth = () => {
+    if (!onMonthChange) return;
+    const d = new Date(currentMonth);
+    d.setMonth(d.getMonth() - 1);
+    onMonthChange(d);
+  };
+
+  const nextMonth = () => {
+    if (!onMonthChange) return;
+    const d = new Date(currentMonth);
+    d.setMonth(d.getMonth() + 1);
+    onMonthChange(d);
+  };
+
+  const today = startOfDay(new Date());
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+        <h3 className="text-base sm:text-lg font-semibold text-slate-900">Wash Calendar</h3>
+        <div className="flex items-center justify-between sm:justify-end gap-2">
+          <button onClick={prevMonth} className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 transition">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm sm:text-base font-medium text-slate-700 min-w-[110px] text-center">
+            {format(currentMonth, "MMMM yyyy")}
+          </span>
+          <button onClick={nextMonth} className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 transition">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+          <div key={day} className="text-center text-[9px] sm:text-xs font-medium text-slate-500 py-1 sm:py-2">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+        {Array(monthStart.getDay()).fill(null).map((_, i) => (
+          <div key={`empty-${i}`} />
+        ))}
+        {days.map((day) => {
+          const status = getWashStatus(day);
+          const isPast = isBefore(startOfDay(day), today) && !isToday(day);
+          return (
+            <div
+              key={day.toISOString()}
+              className={`relative aspect-square p-0.5 sm:p-2 rounded-md sm:rounded-lg text-center transition-all ${
+                isToday(day) ? "bg-cyan-50 ring-2 ring-cyan-500"
+                : status === "completed" ? "bg-green-50"
+                : status === "skipped" || status === "cancelled" ? "bg-red-50"
+                : isPast ? "bg-slate-50"
+                : "hover:bg-slate-50"
+              }`}
+            >
+              <span className={`text-[10px] sm:text-sm ${isToday(day) ? "font-bold text-cyan-700" : "text-slate-700"}`}>
+                {format(day, "d")}
+              </span>
+              <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2">
+                {getStatusIcon(status)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap gap-3 sm:gap-4 mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-slate-200">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-slate-600">
+          <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500" />
+          <span className="text-xs sm:text-sm">Completed</span>
+        </div>
+        <div className="flex items-center gap-1.5 sm:gap-2 text-slate-600">
+          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
+          <span className="text-xs sm:text-sm">Scheduled</span>
+        </div>
+        <div className="flex items-center gap-1.5 sm:gap-2 text-slate-600">
+          <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
+          <span className="text-xs sm:text-sm">Skipped</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
