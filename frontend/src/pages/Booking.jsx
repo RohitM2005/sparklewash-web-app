@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useLocation, Routes, Route } from "react-router-dom";
 import { addMonths, format } from "date-fns";
+import toast, { Toaster } from "react-hot-toast";
 
 import VehicleForm from "../components/Booking/VehicleForm";
 import CustomerForm from "../components/Booking/CustomerForm";
@@ -25,6 +26,12 @@ const steps = [
   { id: 3, name: "Plan", icon: CreditCard },
   { id: 4, name: "Review", icon: CheckCircle },
 ];
+
+const toastStyle = {
+  style: { borderRadius: '10px', background: '#1a1a2e', color: '#fff', border: '1px solid rgba(0,212,255,0.2)' },
+  success: { iconTheme: { primary: '#00d4ff', secondary: '#fff' } },
+  error: { iconTheme: { primary: '#ff4444', secondary: '#fff' } },
+};
 
 export default function Booking() {
   const navigate = useNavigate();
@@ -54,11 +61,10 @@ export default function Booking() {
     special_instructions: "",
     plan_name: "standard",
     monthly_price: 0,
+    selected_services: { dailyWash: false, interiorCleaning: false },
     status: "active",
     payment_status: "pending",
   });
-
-  console.log("Booking component - formData:", formData);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -72,9 +78,43 @@ export default function Booking() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const nextStep = () => {
+  const validateDetailsStep = async () => {
+    const { customer_name, customer_phone, customer_email, address } = formData;
+
+    if (!customer_name?.trim()) { toast.error("Full name is required"); return false; }
+    if (!customer_phone || !/^[6-9]\d{9}$/.test(customer_phone)) { toast.error("Valid 10-digit phone number required"); return false; }
+    if (!customer_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) { toast.error("Valid email required"); return false; }
+    if (!address?.trim()) { toast.error("Address is required"); return false; }
+
+    // Save updated details to DB — exact field names matching users table columns
+    const payload = {
+      full_name: customer_name.trim(),
+      phone: customer_phone.trim(),
+      email: customer_email.trim(),
+      address: address.trim(),
+    };
+
+    console.log("Saving customer details — payload:", payload);
+
+    try {
+      const response = await api.patch("/customer/profile", payload);
+      console.log("✅ Profile save response:", response.data);
+      toast.success("Details saved!");
+    } catch (err) {
+      console.error("❌ Profile save error:", err.response?.data);
+      const msg = err.response?.data?.sqlMessage || err.response?.data?.message || err.response?.data?.error || "Failed to save details";
+      toast.error("Save failed: " + msg);
+      // Non-blocking — allow proceeding even if save fails
+    }
+    return true;
+  };
+
+  const nextStep = async () => {
     if (currentStep === 1) navigate("/booking/details");
-    else if (currentStep === 2) navigate("/booking/plan");
+    else if (currentStep === 2) {
+      const valid = await validateDetailsStep();
+      if (valid) navigate("/booking/plan");
+    }
     else if (currentStep === 3) navigate("/booking/review");
   };
   const prevStep = () => {
@@ -83,82 +123,69 @@ export default function Booking() {
     else if (currentStep === 4) navigate("/booking/plan");
   };
 
+  const getRenewalDate = (startDate) => {
+    const date = startDate ? new Date(startDate) : new Date();
+    date.setMonth(date.getMonth() + 1);
+    return date.toISOString().split("T")[0];
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
 
     try {
       // Step 1: Create or find vehicle
+      console.log("Step 1 — Creating vehicle:", { vehicle_number: formData.vehicle_number, vehicle_model: formData.vehicle_model, vehicle_type: formData.vehicle_type });
       const vehicleRes = await api.post("/vehicles", {
         vehicle_number: formData.vehicle_number,
         vehicle_model: formData.vehicle_model,
         vehicle_type: formData.vehicle_type,
       });
       const vehicle_id = vehicleRes.data.vehicle_id;
+      console.log("Step 1 ✅ vehicle_id:", vehicle_id);
 
-      // Step 2: Create subscription (status = 'pending')
-      const subRes = await api.post("/subscriptions", {
+      // Calculate correct price
+      const vehiclePrices = { micro: 999, sedan: 1199, mini_suv: 1199, suv: 1399 };
+      const selectedServices = formData.selected_services || {};
+      const basePrice = selectedServices.dailyWash ? (vehiclePrices[formData.vehicle_type] || 1199) : 0;
+      const interiorAddon = selectedServices.interiorCleaning ? 300 : 0;
+      const monthlyTotal = basePrice + interiorAddon;
+      const amount = monthlyTotal > 0 ? monthlyTotal : (formData.monthly_price || 1199);
+
+      // Build services array
+      const services = [];
+      if (selectedServices.dailyWash) services.push("daily_wash");
+      if (selectedServices.interiorCleaning) services.push("interior");
+      if (services.length === 0) services.push("daily_wash");
+
+      const startDate = formData.preferred_date || new Date().toISOString().split("T")[0];
+      const fullAddress = formData.address ? `${formData.address}${formData.city ? `, ${formData.city}` : ""}` : undefined;
+
+      // Step 2: Directly create subscription — no payment
+      const response = await api.post("/booking/confirm", {
         vehicle_id,
-        plan_name: formData.plan_name,
-        monthly_price: formData.monthly_price,
-        preferred_time: formData.preferred_time,
-        services: formData.selected_services || [],
+        plan_name: "Daily Wash",
+        services,
+        monthly_price: amount,
+        preferred_time: formData.preferred_time || "morning",
+        start_date: startDate,
+        renewal_date: getRenewalDate(startDate),
+        address: fullAddress,
       });
-      const subscription_id = subRes.data.subscription_id;
 
-      // Step 3: Create Razorpay order
-      const amount = formData.monthly_price || 299;
-      const orderRes = await api.post("/razorpay/create-order", {
-        amount,
-        subscription_id,
-      });
-      const order = orderRes.data.order;
-
-      // Step 4: Open Razorpay checkout
-      const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder";
-
-      const options = {
-        key: RAZORPAY_KEY,
-        amount: order.amount,
-        currency: order.currency || "INR",
-        name: "SparkleWash",
-        description: `${formData.plan_name} Plan Subscription`,
-        order_id: order.id,
-        handler: async (response) => {
-          try {
-            // Step 5: Verify payment
-            await api.post("/razorpay/verify-payment", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              subscription_id,
-              amount,
-            });
-            navigate("/payment-success");
-          } catch (err) {
-            console.error("Payment verification failed:", err);
-            navigate("/payment-failed");
-          }
-        },
-        prefill: {
-          name: formData.customer_name,
-          email: formData.customer_email,
-          contact: formData.customer_phone,
-        },
-        theme: { color: "#06B6D4" },
-      };
-
-      if (typeof window.Razorpay !== "undefined") {
-        const rzp = new window.Razorpay(options);
-        rzp.on("payment.failed", () => navigate("/payment-failed"));
-        rzp.open();
-      } else {
-        // Razorpay SDK not loaded — fall back to marking subscription as active directly
-        console.warn("Razorpay SDK not loaded, skipping payment");
-        navigate("/dashboard");
+      if (response.data.success) {
+        toast.success("Booking confirmed! 🎉", toastStyle);
+        navigate("/booking/confirmed", {
+          state: {
+            subscription: response.data.subscription,
+            bookingData: formData,
+          },
+        });
       }
     } catch (error) {
       console.error("Booking Error:", error);
-      alert(error.response?.data?.message || "Booking failed. Please try again.");
+      console.error("Error details:", error.response?.data);
+      const msg = error.response?.data?.message || error.response?.data?.error || "Booking failed. Please try again.";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -173,30 +200,19 @@ export default function Booking() {
         formData.customer_phone &&
         formData.customer_email &&
         formData.address &&
-        formData.city &&
         formData.preferred_date &&
         formData.preferred_time
       );
-    if (currentStep === 3)
-      return formData.plan_name && formData.preferred_time;
+    if (currentStep === 3) {
+      const svc = formData.selected_services || {};
+      return (svc.dailyWash || svc.interiorCleaning) && formData.preferred_time;
+    }
     return true;
   };
 
-  if (isSubmitting) return <Loader />;
-
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center">
-              <Droplets className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-lg">SparkleWash</span>
-          </Link>
-        </div>
-      </div>
+      <Toaster position="top-right" toastOptions={toastStyle} />
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Step Indicator */}
@@ -260,6 +276,7 @@ export default function Booking() {
                     <ReviewSubmit
                       formData={formData}
                       onSubmit={handleSubmit}
+                      isSubmitting={isSubmitting}
                     />
                   }
                 />
@@ -273,7 +290,7 @@ export default function Booking() {
               <button
                 onClick={prevStep}
                 disabled={currentStep === 1}
-                className="w-full sm:w-auto px-4 py-2 border rounded-md hover:bg-slate-100"
+                className="w-full sm:w-auto px-4 py-2 border rounded-md hover:bg-slate-100 disabled:opacity-40"
               >
                 Back
               </button>
@@ -281,7 +298,7 @@ export default function Booking() {
               <button
                 onClick={nextStep}
                 disabled={!isStepValid()}
-                className="w-full sm:w-auto px-6 py-2 rounded-md text-white bg-gradient-to-r from-cyan-500 to-blue-600"
+                className="w-full sm:w-auto px-6 py-2 rounded-md text-white bg-gradient-to-r from-cyan-500 to-blue-600 disabled:opacity-50"
               >
                 Continue
               </button>

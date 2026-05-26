@@ -7,7 +7,7 @@ export const getCustomerDashboard = async (req, res) => {
 
     // Get user info
     const [[user]] = await pool.execute(
-      "SELECT id, name, full_name, email, phone FROM users WHERE id = ?",
+      "SELECT id, name, full_name, email, phone, manual_total_washes, manual_this_month, manual_recent_wash, manual_active_vehicles, manual_days_left, manual_active_subscriptions FROM users WHERE id = ?",
       [userId]
     );
 
@@ -53,24 +53,42 @@ export const getCustomerDashboard = async (req, res) => {
       [userId]
     );
 
-    // Get payments
+    // Get payments with plan_name
     const [payments] = await pool.execute(
-      `SELECT id, subscription_id, amount, status, payment_method,
-              razorpay_order_id, razorpay_payment_id, paid_at, created_at
-       FROM payments
-       WHERE user_id = ?
-       ORDER BY created_at DESC LIMIT 20`,
+      `SELECT p.id, p.subscription_id, p.amount, p.status, p.payment_method,
+              p.razorpay_order_id, p.razorpay_payment_id, p.paid_at, p.created_at,
+              s.plan_name
+       FROM payments p
+       LEFT JOIN subscriptions s ON p.subscription_id = s.id
+       WHERE p.user_id = ?
+       ORDER BY p.created_at DESC LIMIT 20`,
       [userId]
     );
+
+    // Compute stats
+    const computedActiveVehicles = vehicles.length;
+    const computedActiveSubscriptions = subscriptions.filter(s => s.status === "active").length;
+    let computedDaysLeft = 0;
+    if (activeSub && activeSub.renewal_date) {
+      const renewal = new Date(activeSub.renewal_date);
+      const now = new Date();
+      computedDaysLeft = Math.max(0, Math.ceil((renewal - now) / (1000 * 60 * 60 * 24)));
+    }
 
     res.json({
       user: user || {},
       subscription: activeSub,
       allSubscriptions: subscriptions,
       todayWash: todayWash[0] || null,
+      washRecords: washHistory,
       washHistory,
       vehicles,
       payments,
+      stats: {
+        activeVehicles: user?.manual_active_vehicles !== null ? user.manual_active_vehicles : computedActiveVehicles,
+        daysLeft: user?.manual_days_left !== null ? user.manual_days_left : computedDaysLeft,
+        activeSubscriptions: user?.manual_active_subscriptions !== null ? user.manual_active_subscriptions : computedActiveSubscriptions,
+      },
     });
   } catch (error) {
     console.error("Customer dashboard error:", error);

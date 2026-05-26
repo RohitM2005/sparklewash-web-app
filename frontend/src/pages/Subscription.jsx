@@ -1,8 +1,2 @@
-import React from "react";
-import SubscriptionPlans from "./SubscriptionPlans";
-
-export default function Subscription() {
-  // Reuse the existing plans UI at the required route.
-  return <SubscriptionPlans />;
-}
-
+// This page has been removed from the project
+export default function Subscription() { return null; }

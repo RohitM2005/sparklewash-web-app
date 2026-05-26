@@ -1,107 +1,74 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  LogOut,
   LayoutDashboard,
-  Shield,
+  CalendarCheck,
   Menu,
   X,
 } from "lucide-react";
 import ProfileDropdown from "./components/Navigation/ProfileDropdown";
 import { useAuth } from "./hooks/useAuth";
 
-const NavLinks = ({ user }) => (
-  <>
-    {user ? (
-      <>
-        {/* Show different navigation based on user role */}
-        {user.role === 'customer' && (
-          <>
-            <Link
-              to="/booking"
-              className="py-2 hover:text-cyan-600 transition-colors"
-            >
-              Book Service
-            </Link>
-
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-2 py-2 hover:text-cyan-600 transition-colors"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              Dashboard
-            </Link>
-          </>
-        )}
-
-        {/* For admin and washer users, they get their respective dashboards via protected routes */}
-        {user.role === 'admin' && (
-          <Link
-            to="/admin"
-            className="flex items-center gap-2 py-2 hover:text-cyan-600 transition-colors"
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Admin Dashboard
-          </Link>
-        )}
-
-        {user.role === 'washer' && (
-          <Link
-            to="/washer"
-            className="flex items-center gap-2 py-2 hover:text-cyan-600 transition-colors"
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Washer Dashboard
-          </Link>
-        )}
-      </>
-    ) : (
-      <>
-        {/* Show Admin and Washer only when NOT logged in */}
-        <Link
-          to="/admin/login"
-          className="flex items-center gap-2 py-2 hover:text-cyan-600 transition-colors"
-        >
-          <Shield className="w-4 h-4" />
-          Admin
-        </Link>
-
-        <Link
-          to="/washer/login"
-          className="py-2 hover:text-cyan-600 transition-colors"
-        >
-          Washer
-        </Link>
-      </>
-    )}
-  </>
-);
-
 export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const mobileMenuRef = useRef(null);
+  const hamburgerRef = useRef(null);
 
-  // Close mobile menu on route change
+  useEffect(() => { setMobileOpen(false); }, [location]);
+
   useEffect(() => {
-    setMobileOpen(false);
-  }, [location]);
+    if (!mobileOpen) return;
+    const handleClick = (e) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target) &&
+          hamburgerRef.current && !hamburgerRef.current.contains(e.target)) {
+        setMobileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [mobileOpen]);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const handleLogout = () => { logout(); navigate("/"); };
+
+  const handleBookService = () => {
+    navigate(user ? "/booking" : "/login");
   };
 
-  // Hide navbar for role selection page, admin login, and all washer routes
   const hideNavbarPages = ["/", "/admin/login", "/washer/login"];
-  const shouldHideNavbar = hideNavbarPages.includes(location.pathname) || location.pathname.startsWith("/washer");
+  const shouldHideNavbar =
+    hideNavbarPages.includes(location.pathname) ||
+    location.pathname.startsWith("/washer") ||
+    location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/dashboard") ||
+    location.pathname.startsWith("/booking");
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* HEADER - Hide on specified pages */}
       {!shouldHideNavbar && (
-        <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
+        <header
+          style={{
+            background: "rgba(10, 15, 30, 0.75)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            position: "fixed",
+            top: 0,
+            width: "100%",
+            zIndex: 1000,
+            boxShadow: scrolled ? "0 4px 30px rgba(0,0,0,0.3)" : "none",
+            transition: "box-shadow 0.3s ease",
+          }}
+        >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
             {/* LOGO */}
             <Link to={user ? "/home" : "/"} className="flex items-center gap-3 group">
@@ -109,24 +76,97 @@ export default function Layout({ children }) {
                 src="/logo.jpg"
                 alt="SparkleWash"
                 className="h-10 w-auto group-hover:scale-105 transition-transform duration-200"
+                style={{ borderRadius: "8px" }}
               />
-              <span className="text-lg sm:text-xl font-bold hidden sm:block bg-clip-text text-transparent bg-gradient-to-r from-cyan-600 to-blue-600">
+              <span
+                className="text-lg sm:text-xl font-bold hidden sm:block"
+                style={{
+                  background: "linear-gradient(135deg, #00d4ff, #0066ff)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
                 SparkleWash
               </span>
             </Link>
 
             {/* DESKTOP NAV */}
-            <nav className="hidden md:flex items-center gap-6 text-slate-700 font-medium">
-              <NavLinks user={user} />
+            <nav className="hidden md:flex items-center gap-3">
+              {/* Home link */}
+              <Link
+                to="/home"
+                className="nav-link-hover relative px-4 py-2 text-sm font-medium transition-colors"
+                style={{ color: "rgba(255,255,255,0.75)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4ff")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+              >
+                Home
+                <span
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-0 transition-all duration-300"
+                  style={{ background: "linear-gradient(90deg, #00d4ff, #0066ff)" }}
+                />
+              </Link>
+
+              {/* Book Service Button — only when logged in */}
+              {user && (
+                <button
+                  onClick={handleBookService}
+                  className="flex items-center gap-1.5 text-white text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:scale-[1.03]"
+                  style={{
+                    background: "linear-gradient(135deg, #00d4ff, #0066ff)",
+                    borderRadius: "50px",
+                    padding: "8px 20px",
+                  }}
+                >
+                  <CalendarCheck className="w-4 h-4" />
+                  Book Service
+                </button>
+              )}
+
+              {/* Dashboard link for logged-in customers */}
+              {user && user.role === "customer" && (
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
+                  style={{ color: "rgba(255,255,255,0.75)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4ff")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
+              )}
 
               {!user ? (
-                <div className="flex items-center gap-4 ml-2">
-                  <Link to="/login" className="hover:text-cyan-600 transition-colors px-2 py-2">
+                <div className="flex items-center gap-3 ml-2">
+                  <Link
+                    to="/login"
+                    className="px-5 py-2 text-sm font-medium rounded-full transition-all duration-200"
+                    style={{
+                      color: "#00d4ff",
+                      border: "1px solid rgba(0, 212, 255, 0.4)",
+                      background: "transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "#00d4ff";
+                      e.currentTarget.style.background = "rgba(0, 212, 255, 0.08)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.4)";
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
                     Login
                   </Link>
                   <Link
                     to="/register"
-                    className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-5 py-2 rounded-full shadow hover:shadow-md transition-all duration-200"
+                    className="px-5 py-2 text-sm font-medium text-white rounded-full transition-all duration-200 hover:shadow-lg"
+                    style={{
+                      background: "linear-gradient(135deg, #00d4ff, #0066ff)",
+                      borderRadius: "50px",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                   >
                     Register
                   </Link>
@@ -139,14 +179,13 @@ export default function Layout({ children }) {
             </nav>
 
             {/* MOBILE BUTTON */}
-            <div className="md:hidden flex items-center gap-4">
+            <div className="md:hidden flex items-center gap-3">
               {user && (
-                <div className="flex items-center">
-                  <ProfileDropdown email={user.email} onLogout={handleLogout} />
-                </div>
+                <ProfileDropdown email={user.email} onLogout={handleLogout} />
               )}
               <button
-                className="text-slate-600 hover:text-cyan-600 transition-colors focus:outline-none p-1"
+                ref={hamburgerRef}
+                className="text-white/70 hover:text-cyan-400 transition-colors focus:outline-none p-1"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label="Toggle menu"
               >
@@ -157,20 +196,65 @@ export default function Layout({ children }) {
 
           {/* MOBILE MENU */}
           <div
-            className={`md:hidden absolute w-full bg-white border-b shadow-lg transition-all duration-300 ease-in-out ${mobileOpen ? "opacity-100 max-h-96" : "opacity-0 max-h-0 overflow-hidden"
-              }`}
+            ref={mobileMenuRef}
+            className={`md:hidden absolute w-full border-b transition-all duration-300 ease-in-out ${
+              mobileOpen ? "opacity-100 max-h-[500px]" : "opacity-0 max-h-0 overflow-hidden"
+            }`}
+            style={{
+              background: "rgba(10, 15, 30, 0.95)",
+              backdropFilter: "blur(16px)",
+              borderColor: "rgba(255,255,255,0.08)",
+            }}
           >
-            <div className="px-6 py-4 flex flex-col gap-4 text-slate-700 font-medium font-medium">
-              <NavLinks user={user} />
+            <div className="px-6 py-4 flex flex-col gap-1">
+              <Link
+                to="/home"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2 py-3 px-3 rounded-lg text-sm font-medium transition-colors"
+                style={{ color: "rgba(255,255,255,0.75)" }}
+              >
+                Home
+              </Link>
+
+              {/* Mobile Book Service — only when logged in */}
+              {user && (
+                <button
+                  onClick={() => { setMobileOpen(false); handleBookService(); }}
+                  className="flex items-center gap-2 py-2.5 px-4 rounded-full text-sm font-semibold text-white my-1 self-start"
+                  style={{ background: "linear-gradient(135deg, #00d4ff, #0066ff)" }}
+                >
+                  <CalendarCheck className="w-4 h-4" />
+                  Book Service
+                </button>
+              )}
+
+              {user && user.role === "customer" && (
+                <Link
+                  to="/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 py-3 px-3 rounded-lg text-sm font-medium transition-colors"
+                  style={{ color: "rgba(255,255,255,0.75)" }}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
+              )}
 
               {!user && (
-                <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-slate-100">
-                  <Link to="/login" className="py-2 text-center border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                <div className="flex flex-col gap-3 mt-3 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="py-2.5 text-center rounded-lg text-sm font-medium transition-colors"
+                    style={{ color: "#00d4ff", border: "1px solid rgba(0, 212, 255, 0.4)" }}
+                  >
                     Login
                   </Link>
                   <Link
                     to="/register"
-                    className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white py-2 rounded-lg text-center shadow-sm"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-white py-2.5 rounded-full text-center text-sm font-medium"
+                    style={{ background: "linear-gradient(135deg, #00d4ff, #0066ff)" }}
                   >
                     Register
                   </Link>
@@ -181,9 +265,15 @@ export default function Layout({ children }) {
         </header>
       )}
 
-      <main className="flex-1 bg-slate-50/30">
+      <main className={`flex-1 ${!shouldHideNavbar ? "pt-[64px]" : ""}`}>
         {children || <Outlet />}
       </main>
+
+      <style>{`
+        .nav-link-hover:hover span {
+          width: 80% !important;
+        }
+      `}</style>
     </div>
   );
 }

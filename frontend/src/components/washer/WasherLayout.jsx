@@ -6,17 +6,11 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 
 const bottomNav = [
-  { label: "Home",     path: "/washer",           icon: Home },
-  { label: "Vehicles", path: "/washer/vehicles",   icon: Car },
-  { label: "History",  path: "/washer/history",     icon: Clock },
-  { label: "Profile",  path: "/washer/profile",     icon: User },
+  { label: "Vehicles", path: "/washer",   icon: Car },
 ];
 
 const sidebarLinks = [
-  { label: "Dashboard", path: "/washer",           icon: Home },
-  { label: "Vehicles",  path: "/washer/vehicles",   icon: Car },
-  { label: "Completed", path: "/washer/completed",   icon: Clock },
-  { label: "Profile",   path: "/washer/profile",     icon: User },
+  { label: "Vehicles",  path: "/washer",   icon: Car },
 ];
 
 export default function WasherLayout() {
@@ -41,9 +35,12 @@ export default function WasherLayout() {
       <aside className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 bg-slate-900 z-50">
         {/* Logo */}
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Droplets className="w-4 h-4 text-white" />
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="SparkleWash"
+            className="w-8 h-8 object-cover"
+            style={{ borderRadius: '8px' }}
+          />
           <span className="text-white font-bold text-lg">SparkleWash</span>
         </div>
 
@@ -53,7 +50,7 @@ export default function WasherLayout() {
             <NavLink
               key={l.path}
               to={l.path}
-              end={l.path === "/washer"}
+              end={false}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
                   isActive
@@ -92,9 +89,12 @@ export default function WasherLayout() {
           <aside className="fixed top-0 left-0 h-full w-64 bg-slate-900 z-50 md:hidden flex flex-col">
             <div className="p-6 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center">
-                  <Droplets className="w-4 h-4 text-white" />
-                </div>
+                <img
+                  src="/logo.jpg"
+                  alt="SparkleWash"
+                  className="w-8 h-8 object-cover"
+                  style={{ borderRadius: '8px' }}
+                />
                 <span className="text-white font-bold text-lg">SparkleWash</span>
               </div>
               <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-white p-1">
@@ -106,7 +106,7 @@ export default function WasherLayout() {
                 <NavLink
                   key={l.path}
                   to={l.path}
-                  end={l.path === "/washer"}
+                  end={false}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
                       isActive
@@ -139,10 +139,6 @@ export default function WasherLayout() {
                 <Menu className="w-5 h-5 text-slate-600" />
               </button>
               <div className="flex items-center gap-2">
-                <Droplets className="w-5 h-5 text-cyan-500" />
-                <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-600 to-blue-600">
-                  SparkleWash
-                </span>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -169,7 +165,7 @@ export default function WasherLayout() {
           <NavLink
             key={item.path}
             to={item.path}
-            end={item.path === "/washer"}
+            end={false}
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 text-xs font-medium transition ${
                 isActive ? "text-cyan-500" : "text-slate-400"

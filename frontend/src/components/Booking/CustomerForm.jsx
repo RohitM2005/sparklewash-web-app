@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import toast, { Toaster } from "react-hot-toast";
+import api from "../../services/api";
 
 const TIME_SLOTS = [
   { value: "morning", emoji: "🌅", label: "Morning", sub: "6AM–9AM" },
@@ -17,6 +19,23 @@ const Field = ({ id, label, required, children }) => (
 );
 
 export default function CustomerForm({ formData, updateFormData }) {
+  const [loaded, setLoaded] = useState(false);
+
+  // FIX 2: Auto-fill from DB on mount
+  useEffect(() => {
+    if (loaded) return;
+    api.get("/customer/profile")
+      .then(res => {
+        const p = res.data?.profile || {};
+        if (p.full_name && !formData?.customer_name) updateFormData("customer_name", p.full_name);
+        if (p.phone && !formData?.customer_phone) updateFormData("customer_phone", p.phone);
+        if (p.email && !formData?.customer_email) updateFormData("customer_email", p.email);
+        if (p.address && !formData?.address) updateFormData("address", p.address);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
   if (!formData) return <div className="p-8 text-center text-slate-400 text-sm">Loading...</div>;
 
   const safe = { customer_name: "", customer_phone: "", customer_email: "", address: "", city: "", preferred_date: "", preferred_time: "morning", special_instructions: "", ...formData };
@@ -25,6 +44,7 @@ export default function CustomerForm({ formData, updateFormData }) {
 
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+      <Toaster position="top-right" />
       <div>
         <h3 className="text-base sm:text-lg font-semibold text-slate-900">Customer Details</h3>
         <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Your contact and wash location</p>

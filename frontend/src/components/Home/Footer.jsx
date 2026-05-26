@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 import {
   Droplets,
   Mail,
@@ -9,18 +11,10 @@ import {
   Instagram,
   Linkedin,
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import LegalModal from "../legal/LegalModal";
-import PrivacyPolicyContent from "../legal/PrivacyPolicy";
-import TermsConditionsContent from "../legal/TermsConditions";
-import RefundPolicyContent from "../legal/RefundPolicy";
 
 export default function Footer() {
-  const [modal, setModal] = useState(null);
-
+  const { user } = useAuth();
   return (
-    <>
-
     <footer className="bg-slate-950 text-slate-400 pt-12 sm:pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -30,9 +24,12 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center">
-                <Droplets className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
+              <img
+                src="/logo.jpg"
+                alt="SparkleWash"
+                className="w-9 h-9 sm:w-10 sm:h-10 object-cover"
+                style={{ borderRadius: "10px" }}
+              />
               <span className="text-lg sm:text-xl font-bold text-white">
                 SparkleWash
               </span>
@@ -69,7 +66,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/booking" className="hover:text-cyan-400 transition">
+                <Link to={user ? "/booking" : "/login"} className="hover:text-cyan-400 transition">
                   Book Now
                 </Link>
               </li>
@@ -133,35 +130,24 @@ export default function Footer() {
         <div className="border-t border-slate-800 pt-6 sm:pt-8">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-xs sm:text-sm">
             <p className="text-center sm:text-left">
-              © 2024 SparkleWash. All rights reserved.
+              © 2026 SparkleWash. All rights reserved.
             </p>
 
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-              <button onClick={() => setModal("privacy")} className="hover:text-cyan-400 transition cursor-pointer">
+              <Link to="/privacy-policy" className="hover:text-cyan-400 transition">
                 Privacy Policy
-              </button>
-              <button onClick={() => setModal("terms")} className="hover:text-cyan-400 transition cursor-pointer">
+              </Link>
+              <Link to="/terms-of-service" className="hover:text-cyan-400 transition">
                 Terms of Service
-              </button>
-              <button onClick={() => setModal("refund")} className="hover:text-cyan-400 transition cursor-pointer">
+              </Link>
+              <Link to="/refund-policy" className="hover:text-cyan-400 transition">
                 Refund Policy
-              </button>
+              </Link>
             </div>
           </div>
         </div>
 
       </div>
     </footer>
-
-    <LegalModal isOpen={modal === "privacy"} onClose={() => setModal(null)} title="🔐 Privacy Policy">
-      <PrivacyPolicyContent />
-    </LegalModal>
-    <LegalModal isOpen={modal === "terms"} onClose={() => setModal(null)} title="📄 Terms & Conditions">
-      <TermsConditionsContent />
-    </LegalModal>
-    <LegalModal isOpen={modal === "refund"} onClose={() => setModal(null)} title="💸 Refund & Cancellation Policy">
-      <RefundPolicyContent />
-    </LegalModal>
-    </>
   );
 }

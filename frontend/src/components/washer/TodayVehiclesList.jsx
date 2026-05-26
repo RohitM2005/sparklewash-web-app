@@ -35,7 +35,12 @@ export default function TodayVehiclesList() {
   const load = async () => {
     try {
       const res = await getTodayVehicles();
-      setVehicles(res.vehicles || []);
+      const mappedVehicles = (res.vehicles || []).map(v => ({
+        ...v,
+        status: v.wash_status || v.status
+      }));
+      console.log("=== FRONTEND VEHICLES ===", mappedVehicles);
+      setVehicles(mappedVehicles);
     } catch (err) {
       console.error(err);
     } finally {

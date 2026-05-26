@@ -1,0 +1,30 @@
+# Root gitignore for SparkleWash project
+
+# Ignore local config/secret files
+.env
+.env.local
+.env.*.local
+frontend/.env
+backend/.env
+backend/serviceAccountKey.json
+backend/serviceAccountKey.json.json
+
+# Ignore node_modules globally
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Ignore production builds
+frontend/dist/
+dist/
+
+# Ignore archives & backups
+*.zip
+backend.zip
+*.sql
+sparklewash_backup.sql
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+desktop.ini

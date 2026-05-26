@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Clock, X } from "lucide-react";
+import { ArrowLeft, Loader2, Clock } from "lucide-react";
 import { getCompletedWashes } from "../../services/washer.service";
 
 export default function CompletedList() {
   const navigate = useNavigate();
   const [completed, setCompleted] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lightbox, setLightbox] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -72,43 +71,11 @@ export default function CompletedList() {
                 </div>
               </div>
 
-              {/* Photo thumbnails */}
-              {(w.before_photo_url || w.after_photo_url) && (
-                <div className="flex gap-3">
-                  {w.before_photo_url && (
-                    <div
-                      onClick={() => setLightbox(w.before_photo_url)}
-                      className="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:ring-2 hover:ring-cyan-300 transition"
-                    >
-                      <img src={w.before_photo_url} alt="Before" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                  {w.after_photo_url && (
-                    <div
-                      onClick={() => setLightbox(w.after_photo_url)}
-                      className="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:ring-2 hover:ring-cyan-300 transition"
-                    >
-                      <img src={w.after_photo_url} alt="After" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                </div>
-              )}
-
               {w.washer_note && (
                 <p className="text-xs text-slate-400 italic">"{w.washer_note}"</p>
               )}
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Lightbox */}
-      {lightbox && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
-          <button className="absolute top-4 right-4 text-white/80 hover:text-white z-10 p-2">
-            <X className="w-6 h-6" />
-          </button>
-          <img src={lightbox} alt="Photo" className="max-w-full max-h-[85vh] rounded-xl object-contain" />
         </div>
       )}
     </div>

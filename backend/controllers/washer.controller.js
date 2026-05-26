@@ -27,7 +27,7 @@ export const getWasherDashboard = async (req, res) => {
     // Get today's vehicles with wash status
     const [vehicles] = await pool.execute(`
       SELECT wr.id as record_id, wr.status as wash_status,
-             wr.started_at, wr.washed_at, wr.before_photo_url, wr.after_photo_url,
+             wr.started_at, wr.washed_at,
              v.vehicle_number, v.vehicle_type, v.vehicle_model,
              u.full_name as customer_name, u.phone as customer_phone, u.address
       FROM wash_records wr
@@ -68,7 +68,7 @@ export const getTodayVehicles = async (req, res) => {
 
     const [vehicles] = await pool.execute(`
       SELECT wr.id as record_id, wr.status as wash_status,
-             wr.started_at, wr.washed_at, wr.before_photo_url, wr.after_photo_url,
+             wr.started_at, wr.washed_at,
              v.vehicle_number, v.vehicle_type, v.vehicle_model,
              u.full_name as customer_name, u.phone as customer_phone, u.address
       FROM wash_records wr
@@ -78,6 +78,7 @@ export const getTodayVehicles = async (req, res) => {
       ORDER BY wr.status ASC
     `, [washerId, today]);
 
+    console.log("=== GET TODAY VEHICLES ===", vehicles);
     res.json({ vehicles });
   } catch (error) {
     console.error("Get today vehicles error:", error);
@@ -89,6 +90,7 @@ export const startWash = async (req, res) => {
   try {
     const { recordId } = req.params;
     const washerId = req.user.id;
+    console.log("=== START WASH ===", { recordId, washerId });
 
     const [result] = await pool.execute(
       "UPDATE wash_records SET status = 'washing', started_at = NOW() WHERE id = ? AND washer_id = ?",
@@ -110,7 +112,7 @@ export const completeWash = async (req, res) => {
   try {
     const { recordId } = req.params;
     const washerId = req.user.id;
-    const { before_photo_url, after_photo_url, washer_note } = req.body;
+    const { washer_note } = req.body;
 
     // Calculate duration
     const [records] = await pool.execute(
@@ -128,11 +130,9 @@ export const completeWash = async (req, res) => {
 
     const [result] = await pool.execute(
       `UPDATE wash_records SET status = 'completed', washed_at = NOW(),
-        before_photo_url = COALESCE(?, before_photo_url),
-        after_photo_url = COALESCE(?, after_photo_url),
         washer_note = ?, wash_duration_minutes = ?
        WHERE id = ? AND washer_id = ?`,
-      [before_photo_url || null, after_photo_url || null, washer_note || null, duration, recordId, washerId]
+      [washer_note || null, duration, recordId, washerId]
     );
 
     if (result.affectedRows === 0) {

@@ -16,7 +16,7 @@ export const getAdminStats = async (req, res) => {
       "SELECT COUNT(*) as activeSubscriptions FROM subscriptions WHERE status = 'active'"
     );
     const [[{ totalRevenue }]] = await pool.execute(
-      "SELECT COALESCE(SUM(amount), 0) as totalRevenue FROM payments WHERE status IN ('success','paid')"
+      "SELECT COALESCE(SUM(amount), 0) as totalRevenue FROM payments WHERE status IN ('success','paid','captured')"
     );
     const [[{ totalVehicles }]] = await pool.execute(
       "SELECT COUNT(*) as totalVehicles FROM vehicles"
@@ -135,15 +135,53 @@ export const toggleWasherStatus = async (req, res) => {
   }
 };
 
+// Update washer
+export const updateWasher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { full_name, email, phone, address, status } = req.body;
+    const fields = [];
+    const params = [];
+
+    if (full_name) { fields.push("full_name = ?, name = ?"); params.push(full_name, full_name); }
+    if (email) { fields.push("email = ?"); params.push(email); }
+    if (phone !== undefined) { fields.push("phone = ?"); params.push(phone); }
+    if (address !== undefined) { fields.push("address = ?"); params.push(address); }
+    if (status && ["active", "suspended"].includes(status)) { fields.push("status = ?"); params.push(status); }
+
+    if (fields.length === 0) return res.status(400).json({ message: "No fields to update" });
+
+    params.push(id);
+    await pool.execute(`UPDATE users SET ${fields.join(", ")} WHERE id = ? AND role = 'washer'`, params);
+    res.json({ success: true, message: "Washer updated" });
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") return res.status(400).json({ message: "Email already exists" });
+    console.error("Update washer error:", error);
+    res.status(500).json({ message: "Failed to update washer", error: error.message });
+  }
+};
+
+// Delete washer
+export const deleteWasher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.execute("DELETE FROM users WHERE id = ? AND role = 'washer'", [id]);
+    res.json({ success: true, message: "Washer deleted" });
+  } catch (error) {
+    console.error("Delete washer error:", error);
+    res.status(500).json({ message: "Failed to delete washer", error: error.message });
+  }
+};
+
 // All wash records
 export const getAllWashRecords = async (req, res) => {
   try {
     const { date, status } = req.query;
     let query = `
       SELECT wr.id, wr.wash_date, wr.status,
-             wr.before_photo_url, wr.after_photo_url,
              wr.started_at, wr.washed_at, wr.wash_duration_minutes,
              wr.washer_note, wr.issue_type, wr.issue_note,
+             wr.verified, wr.verified_at,
              u.full_name as customer_name,
              v.vehicle_number, v.vehicle_type,
              w.full_name as washer_name
@@ -184,5 +222,68 @@ export const getAllVehicles = async (req, res) => {
   } catch (error) {
     console.error("Get vehicles error:", error);
     res.status(500).json({ message: "Failed to load vehicles", error: error.message });
+  }
+};
+
+// Update vehicle
+export const updateVehicle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { vehicle_number, vehicle_model, vehicle_type } = req.body;
+    const fields = [];
+    const params = [];
+
+    if (vehicle_number) { fields.push("vehicle_number = ?"); params.push(vehicle_number); }
+    if (vehicle_model !== undefined) { fields.push("vehicle_model = ?"); params.push(vehicle_model); }
+    if (vehicle_type) { fields.push("vehicle_type = ?"); params.push(vehicle_type); }
+
+    if (fields.length === 0) return res.status(400).json({ message: "No fields to update" });
+
+    params.push(id);
+    await pool.execute(`UPDATE vehicles SET ${fields.join(", ")} WHERE id = ?`, params);
+    res.json({ success: true, message: "Vehicle updated" });
+  } catch (error) {
+    console.error("Update vehicle error:", error);
+    res.status(500).json({ message: "Failed to update vehicle", error: error.message });
+  }
+};
+
+// Delete vehicle
+export const deleteVehicle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.execute("DELETE FROM vehicles WHERE id = ?", [id]);
+    res.json({ success: true, message: "Vehicle deleted" });
+  } catch (error) {
+    console.error("Delete vehicle error:", error);
+    res.status(500).json({ message: "Failed to delete vehicle", error: error.message });
+  }
+};
+
+// Delete payment
+export const deletePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Delete associated billing_items first (foreign key Cascade safety)
+    await pool.execute("DELETE FROM billing_items WHERE payment_id = ?", [id]);
+
+    // Delete payment record
+    const [result] = await pool.execute("DELETE FROM payments WHERE id = ?", [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    // Log admin activity
+    await pool.execute("INSERT INTO activity_log (admin_id, action) VALUES (?, ?)", [
+      req.user?.id || null,
+      `Deleted payment/bill #${id}`
+    ]);
+
+    res.json({ success: true, message: "Payment deleted successfully" });
+  } catch (error) {
+    console.error("Delete payment error:", error);
+    res.status(500).json({ message: "Failed to delete payment", error: error.message });
   }
 };

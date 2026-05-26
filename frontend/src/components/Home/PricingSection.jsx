@@ -71,7 +71,7 @@ function PricingSection() {
   ];
 
   return (
-    <div className="py-10 px-4 sm:px-6 lg:px-8">
+    <div>
       {/* Section Heading */}
       <div className="text-center mb-10">
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900">

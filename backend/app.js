@@ -12,19 +12,29 @@ import adminRoutes from "./routes/admin.routes.js";
 import washerRoutes from "./routes/washer.routes.js";
 import customerHistoryRoutes from "./routes/customerHistory.routes.js";
 import razorpayRoutes from "./routes/razorpay.routes.js";
-import uploadRoutes from "./routes/upload.routes.js";
+import billingRoutes from "./routes/billing.routes.js";
+
+import customerSettingsRoutes from "./routes/customerSettings.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
 
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "https://sparklewash.in",
+    "https://www.sparklewash.in",
+    "http://sparklewash.in",
+    "http://www.sparklewash.in",
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
   credentials: true,
 }));
 app.use(express.json());
 
-// Serve uploaded files
-app.use("/uploads", express.static("uploads"));
+
 
 // Health check
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
@@ -44,6 +54,7 @@ app.use("/api/payment", paymentRoutes);
 
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/customer", customerHistoryRoutes);
+app.use("/api/customer", customerSettingsRoutes);
 
 // Admin (all admin routes consolidated)
 app.use("/api/admin", adminRoutes);
@@ -51,9 +62,11 @@ app.use("/api/admin", adminRoutes);
 // Washer
 app.use("/api/washer", washerRoutes);
 
-// Razorpay & Upload
+// Razorpay
 app.use("/api/razorpay", razorpayRoutes);
-app.use("/api/upload", uploadRoutes);
+
+// Billing (admin + customer + booking confirm)
+app.use("/api", billingRoutes);
 
 app.use((req, res, next) => {
   res.status(404).json({ success: false, message: "Route not found" });

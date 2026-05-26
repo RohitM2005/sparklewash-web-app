@@ -60,7 +60,7 @@ function HowItWorksSection() {
   }, [isVideoOpen]);
 
   return (
-    <section id="how-it-works" className="bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
+    <section id="how-it-works">
       <div className="max-w-6xl mx-auto">
         {/* Heading */}
         <div className="text-center mb-12">

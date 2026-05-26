@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Camera, Check, Loader2, Clock,
+  ArrowLeft, Check, Loader2, Clock,
 } from "lucide-react";
-import { getTodayVehicles, completeWash, uploadWashProof } from "../../services/washer.service";
+import { getTodayVehicles, completeWash } from "../../services/washer.service";
 
 const CHECKLIST_ITEMS = [
   "Exterior Wash",
@@ -20,18 +20,9 @@ export default function WashProcess() {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(2); // Start at step 2 (washing) since wash was already started
   const [checklist, setChecklist] = useState({});
-  const [beforeUrl, setBeforeUrl] = useState("");
-  const [afterUrl, setAfterUrl] = useState("");
-  const [beforePreview, setBeforePreview] = useState("");
-  const [afterPreview, setAfterPreview] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-
-  const beforeRef = useRef(null);
-  const afterRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -42,8 +33,6 @@ export default function WashProcess() {
         );
         if (v) {
           setVehicle(v);
-          if (v.before_photo_url) setBeforeUrl(v.before_photo_url);
-          if (v.after_photo_url) setAfterUrl(v.after_photo_url);
         }
       } catch (err) {
         console.error(err);
@@ -53,40 +42,10 @@ export default function WashProcess() {
     })();
   }, [recordId]);
 
-  const handlePhoto = async (file, type) => {
-    if (!file) return;
-    setUploading(true);
-    setUploadProgress(0);
-
-    // Show preview immediately
-    const preview = URL.createObjectURL(file);
-    if (type === "before") setBeforePreview(preview);
-    else setAfterPreview(preview);
-
-    try {
-      const res = await uploadWashProof(file, type, recordId, (p) => setUploadProgress(p));
-      if (type === "before") setBeforeUrl(res.url);
-      else setAfterUrl(res.url);
-    } catch (err) {
-      alert("Photo upload failed. Please try again.");
-      if (type === "before") setBeforePreview("");
-      else setAfterPreview("");
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-    }
-  };
-
   const handleSubmit = async () => {
-    if (!afterUrl && !afterPreview) {
-      alert("After photo is required!");
-      return;
-    }
     setSubmitting(true);
     try {
       await completeWash(recordId, {
-        before_photo_url: beforeUrl,
-        after_photo_url: afterUrl,
         washer_note: note || null,
         checklist: Object.keys(checklist).filter((k) => checklist[k]),
       });
@@ -146,14 +105,14 @@ export default function WashProcess() {
 
       {/* Step indicators */}
       <div className="flex items-center gap-2">
-        {[2, 3, 4, 5].map((s) => (
+        {[2, 3, 4].map((s) => (
           <div key={s} className="flex items-center gap-2 flex-1">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
               step >= s ? "bg-cyan-500 text-white" : "bg-slate-100 text-slate-400"
             }`}>
               {step > s ? <Check className="w-4 h-4" /> : s - 1}
             </div>
-            {s < 5 && <div className={`flex-1 h-1 rounded ${step > s ? "bg-cyan-500" : "bg-slate-100"}`} />}
+            {s < 4 && <div className={`flex-1 h-1 rounded ${step > s ? "bg-cyan-500" : "bg-slate-100"}`} />}
           </div>
         ))}
       </div>
@@ -197,132 +156,13 @@ export default function WashProcess() {
             className="w-full py-4 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-cyan-500 to-blue-600 active:scale-[0.98] transition"
             style={{ minHeight: 56 }}
           >
-            Continue → Photos
+            Continue → Note
           </button>
         </div>
       )}
 
-      {/* STEP 3: Photo Capture */}
+      {/* STEP 3: Add Note */}
       {step === 3 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">Take Before & After Photos</h2>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Before Photo */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-600 text-center">Before</p>
-              <div
-                onClick={() => !uploading && beforeRef.current?.click()}
-                className={`aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition overflow-hidden ${
-                  beforePreview || beforeUrl
-                    ? "border-green-300 bg-green-50"
-                    : "border-slate-300 bg-slate-50 hover:bg-slate-100"
-                }`}
-              >
-                {beforePreview || beforeUrl ? (
-                  <div className="relative w-full h-full">
-                    <img src={beforePreview || beforeUrl} alt="Before" className="w-full h-full object-cover" />
-                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <Camera className="w-8 h-8 text-slate-400 mb-1" />
-                    <span className="text-xs text-slate-400">📷 Before</span>
-                  </>
-                )}
-              </div>
-              <input
-                ref={beforeRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => handlePhoto(e.target.files[0], "before")}
-              />
-              {(beforePreview || beforeUrl) && (
-                <button
-                  onClick={() => { setBeforePreview(""); setBeforeUrl(""); }}
-                  className="w-full text-xs text-slate-500 hover:text-red-500 py-1"
-                >
-                  Retake
-                </button>
-              )}
-            </div>
-
-            {/* After Photo */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-600 text-center">After <span className="text-red-500">*</span></p>
-              <div
-                onClick={() => !uploading && afterRef.current?.click()}
-                className={`aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition overflow-hidden ${
-                  afterPreview || afterUrl
-                    ? "border-green-300 bg-green-50"
-                    : "border-slate-300 bg-slate-50 hover:bg-slate-100"
-                }`}
-              >
-                {afterPreview || afterUrl ? (
-                  <div className="relative w-full h-full">
-                    <img src={afterPreview || afterUrl} alt="After" className="w-full h-full object-cover" />
-                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <Camera className="w-8 h-8 text-slate-400 mb-1" />
-                    <span className="text-xs text-slate-400">📷 After *</span>
-                  </>
-                )}
-              </div>
-              <input
-                ref={afterRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => handlePhoto(e.target.files[0], "after")}
-              />
-              {(afterPreview || afterUrl) && (
-                <button
-                  onClick={() => { setAfterPreview(""); setAfterUrl(""); }}
-                  className="w-full text-xs text-slate-500 hover:text-red-500 py-1"
-                >
-                  Retake
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Upload progress */}
-          {uploading && (
-            <div className="space-y-1">
-              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-cyan-500 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
-              </div>
-              <p className="text-xs text-slate-500 text-center">Uploading... {uploadProgress}%</p>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <button onClick={() => setStep(2)} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-600 font-medium" style={{ minHeight: 48 }}>
-              Back
-            </button>
-            <button
-              onClick={() => setStep(4)}
-              disabled={!(afterUrl || afterPreview)}
-              className="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-base transition"
-              style={{ minHeight: 48 }}
-            >
-              Continue → Note
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 4: Add Note */}
-      {step === 4 && (
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-900">Any Notes? (optional)</h2>
           <textarea
@@ -335,11 +175,11 @@ export default function WashProcess() {
           <p className="text-xs text-slate-400 text-right">{note.length}/200</p>
 
           <div className="flex gap-3">
-            <button onClick={() => setStep(3)} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-600 font-medium" style={{ minHeight: 48 }}>
+            <button onClick={() => setStep(2)} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-600 font-medium" style={{ minHeight: 48 }}>
               Back
             </button>
             <button
-              onClick={() => setStep(5)}
+              onClick={() => setStep(4)}
               className="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 text-base transition"
               style={{ minHeight: 48 }}
             >
@@ -349,8 +189,8 @@ export default function WashProcess() {
         </div>
       )}
 
-      {/* STEP 5: Confirm & Submit */}
-      {step === 5 && (
+      {/* STEP 4: Confirm & Submit */}
+      {step === 4 && (
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-900">Review & Submit</h2>
 
@@ -371,12 +211,6 @@ export default function WashProcess() {
                 </span>
               </div>
             )}
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Photos</span>
-              <span className="font-medium text-slate-800">
-                {(beforeUrl || beforePreview) ? "✅ Before" : "❌ Before"} + {(afterUrl || afterPreview) ? "✅ After" : "❌ After"}
-              </span>
-            </div>
             {Object.keys(checklist).filter(k => checklist[k]).length > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Checklist</span>
@@ -394,7 +228,7 @@ export default function WashProcess() {
           </div>
 
           <div className="flex gap-3">
-            <button onClick={() => setStep(4)} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-600 font-medium" style={{ minHeight: 48 }}>
+            <button onClick={() => setStep(3)} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-600 font-medium" style={{ minHeight: 48 }}>
               Back
             </button>
             <button

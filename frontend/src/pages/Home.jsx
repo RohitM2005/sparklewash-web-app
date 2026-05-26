@@ -9,30 +9,30 @@ import Footer from "../components/Home/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-white overflow-x-hidden" style={{ marginTop: 0, paddingTop: 0 }}>
 
-      {/* HERO */}
-      <section className="pt-2 sm:pt-4 md:pt-6">
+      {/* HERO — no extra wrapper padding */}
+      <section style={{ margin: 0, padding: 0 }}>
         <HeroSection />
       </section>
 
       {/* FEATURES */}
-      <section className="py-10 sm:py-14 md:py-20 px-4 sm:px-6 lg:px-8">
+      <section className="px-4 sm:px-6 lg:px-8" style={{ margin: 0, paddingTop: '48px', paddingBottom: '48px' }}>
         <FeaturesSection />
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="py-10 sm:py-14 md:py-20 bg-slate-50 px-4 sm:px-6 lg:px-8">
+      <section className="bg-slate-50 px-4 sm:px-6 lg:px-8" style={{ margin: 0, paddingTop: '48px', paddingBottom: '48px' }}>
         <HowItWorksSection />
       </section>
 
       {/* PRICING */}
-      <section className="py-10 sm:py-14 md:py-20 px-4 sm:px-6 lg:px-8">
+      <section className="px-4 sm:px-6 lg:px-8" style={{ margin: 0, paddingTop: '48px', paddingBottom: '48px' }}>
         <PricingSection />
       </section>
 
       {/* TESTIMONIALS */}
-      <section className="py-10 sm:py-14 md:py-20 bg-slate-50 px-4 sm:px-6 lg:px-8">
+      <section className="bg-slate-50 px-4 sm:px-6 lg:px-8" style={{ margin: 0, paddingTop: '48px', paddingBottom: '48px' }}>
         <TestimonialsSection />
       </section>
 

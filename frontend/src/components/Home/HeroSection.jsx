@@ -2,12 +2,14 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Play, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function HeroSection() {
+  const { user } = useAuth();
   const benefits = [
     "Daily doorstep service",
-    "Photo proof of every wash",
-    "Flexible subscriptions",
+    "Scratch-Safe Cleaning",
+    "Verified Professionals",
   ];
 
   return (
@@ -55,12 +57,12 @@ export default function HeroSection() {
             {/* Subtitle */}
             <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-8 max-w-lg">
               Experience hassle-free car washing with our subscription service.
-              We come to you daily with photo proof of every wash.
+              We come to you daily — reliable, professional, and convenient.
             </p>
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 mb-10">
-              <Link to="/booking" className="w-full sm:w-auto">
+              <Link to={user ? "/booking" : "/login"} className="w-full sm:w-auto">
                 <button
                   className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-600
                     hover:scale-105 transition-all px-6 sm:px-8 py-3 sm:py-4
@@ -114,7 +116,7 @@ export default function HeroSection() {
           >
             <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
               <img
-                src="/assets/hero-car.jpg"
+                src="/assets/hero-car.png"
                 alt="Professional car wash"
                 className="w-full h-[400px] xl:h-[500px] object-cover"
               />

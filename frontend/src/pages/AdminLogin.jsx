@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Droplets, Mail, Lock, Shield } from "lucide-react";
+import { Mail, Lock, Shield, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { adminLogin } from "../services/admin.service";
 
@@ -17,6 +17,7 @@ export default function AdminLogin() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (user && userRoles.includes("admin")) {
@@ -58,9 +59,12 @@ export default function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 sm:px-6">
       <div className="w-full max-w-sm sm:max-w-md bg-white rounded-2xl shadow-xl border p-6 sm:p-8">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="SparkleWash"
+            className="w-14 h-14 sm:w-16 sm:h-16 object-cover"
+            style={{ borderRadius: '16px' }}
+          />
 
           <h1 className="text-xl sm:text-2xl font-bold mt-3 text-slate-900 flex items-center gap-2">
             <Shield className="w-5 h-5 text-slate-700" />
@@ -98,17 +102,49 @@ export default function AdminLogin() {
             />
           </div>
 
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <div style={{ position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: '14px', top: '50%',
+              transform: 'translateY(-50%)', color: '#aaa'
+            }}>
+              🔒
+            </span>
             <input
               name="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               placeholder="Password"
               value={form.password}
               onChange={handleChange}
               required
-              className="w-full border rounded-md pl-10 pr-3 py-2.5 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+              style={{
+                width: '100%',
+                padding: '14px 44px 14px 40px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '10px',
+                fontSize: '15px',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '14px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#888',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0'
+              }}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
           <button

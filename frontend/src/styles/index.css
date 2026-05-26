@@ -1,3 +1,288 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ═══ Dark Mode CSS Variables ═══ */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --text-primary: #111111;
+  --text-secondary: #666666;
+  --border-color: #e5e7eb;
+  --card-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+  --card-bg: #1e293b;
+  --sidebar-bg: #0f172a;
+}
+
+[data-theme="dark"] body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .bg-white {
+  background: var(--card-bg) !important;
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-100 {
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .text-slate-500,
+[data-theme="dark"] .text-slate-400,
+[data-theme="dark"] .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-100 {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 {
+  background: var(--bg-primary) !important;
+}
+
+[data-theme="dark"] .border-r.border-slate-200 {
+  border-color: #334155 !important;
+  background: var(--sidebar-bg) !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #475569 !important;
+}
+
+[data-theme="dark"] .hover\:bg-slate-50:hover {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .hover\:bg-slate-100:hover {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] thead.bg-slate-50 {
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+/* Smooth transition for dark mode */
+body {
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Dropdown animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Bill Due Card Styles */
+.bill-due-card {
+  border: 2px solid #00d4ff;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+}
+
+[data-theme="dark"] .bill-due-card {
+  border: 2px solid #0066ff !important;
+  background: linear-gradient(135deg, #1e293b, #0f172a) !important;
+}
+
+.bill-note {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+[data-theme="dark"] .bill-note {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+}
+
+/* Dark Mode Selection State Overrides */
+[data-theme="dark"] .bg-cyan-50 {
+  background-color: rgba(6, 182, 212, 0.15) !important;
+}
+
+[data-theme="dark"] .bg-purple-50 {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+}
+
+[data-theme="dark"] .text-cyan-700 {
+  color: #22d3ee !important;
+}
+
+[data-theme="dark"] .text-purple-700 {
+  color: #c084fc !important;
+}
+
+/* ─── Additional Dark Mode Overrides ─── */
+
+/* Green backgrounds (badges, status) */
+[data-theme="dark"] .bg-green-50 {
+  background-color: rgba(34, 197, 94, 0.12) !important;
+}
+
+/* Amber/Orange backgrounds */
+[data-theme="dark"] .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+
+/* Blue backgrounds */
+[data-theme="dark"] .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+}
+
+/* Red backgrounds */
+[data-theme="dark"] .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+
+/* Gray text variants */
+[data-theme="dark"] .text-gray-900 {
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .text-gray-700,
+[data-theme="dark"] .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+[data-theme="dark"] .text-gray-400,
+[data-theme="dark"] .text-gray-300 {
+  color: #94a3b8 !important;
+}
+
+/* Fix booking page: bg-slate-50 main wrapper */
+[data-theme="dark"] .min-h-screen.bg-slate-50 {
+  background: var(--bg-primary) !important;
+}
+
+/* Fix bg-white cards inside booking / dashboard */
+[data-theme="dark"] .bg-white.rounded-2xl,
+[data-theme="dark"] .bg-white.rounded-xl {
+  background: var(--card-bg) !important;
+}
+
+/* Booking selection card borders in dark mode */
+[data-theme="dark"] .border-cyan-500 {
+  border-color: #06b6d4 !important;
+}
+[data-theme="dark"] .border-slate-200 {
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .border-slate-300 {
+  border-color: #475569 !important;
+}
+
+/* Dashboard sidebar dark */
+[data-theme="dark"] .bg-white.border-r {
+  background: var(--sidebar-bg) !important;
+  border-color: #334155 !important;
+}
+
+/* Dashboard mobile header */
+[data-theme="dark"] .bg-white.border-b {
+  background: var(--card-bg) !important;
+  border-color: #334155 !important;
+}
+
+/* Dividers */
+[data-theme="dark"] .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+/* Colored text overrides for dark mode readability */
+[data-theme="dark"] .text-green-700 {
+  color: #4ade80 !important;
+}
+[data-theme="dark"] .text-green-600 {
+  color: #22c55e !important;
+}
+[data-theme="dark"] .text-amber-700,
+[data-theme="dark"] .text-amber-800 {
+  color: #fbbf24 !important;
+}
+[data-theme="dark"] .text-amber-600 {
+  color: #f59e0b !important;
+}
+[data-theme="dark"] .text-amber-500 {
+  color: #d97706 !important;
+}
+[data-theme="dark"] .text-blue-700 {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] .text-red-600,
+[data-theme="dark"] .text-red-500 {
+  color: #f87171 !important;
+}
+
+/* Border color overrides for colored borders */
+[data-theme="dark"] .border-green-100 {
+  border-color: rgba(34, 197, 94, 0.2) !important;
+}
+[data-theme="dark"] .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.2) !important;
+}
+[data-theme="dark"] .border-blue-100 {
+  border-color: rgba(59, 130, 246, 0.2) !important;
+}
+[data-theme="dark"] .border-red-100 {
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Shadow overrides */
+[data-theme="dark"] .shadow-sm,
+[data-theme="dark"] .shadow-md {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Hover states for colored backgrounds */
+[data-theme="dark"] .hover\:bg-cyan-100:hover {
+  background-color: rgba(6, 182, 212, 0.25) !important;
+}
+[data-theme="dark"] .hover\:bg-cyan-200:hover {
+  background-color: rgba(6, 182, 212, 0.3) !important;
+}
+[data-theme="dark"] .hover\:border-cyan-200:hover {
+  border-color: rgba(6, 182, 212, 0.4) !important;
+}
+[data-theme="dark"] .hover\:bg-red-100:hover {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Scrollbar dark mode */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 6px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}

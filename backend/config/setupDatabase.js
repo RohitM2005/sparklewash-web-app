@@ -53,6 +53,7 @@ const setupDatabase = async () => {
         renewal_date DATE,
         razorpay_order_id VARCHAR(100),
         razorpay_payment_id VARCHAR(100),
+        frequency VARCHAR(50) DEFAULT 'daily',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       ) ENGINE=InnoDB
@@ -88,20 +89,119 @@ const setupDatabase = async () => {
         user_id INT NOT NULL,
         wash_date DATE NOT NULL,
         status ENUM('pending','washing','completed','skipped','issue_reported') DEFAULT 'pending',
-        before_photo_url VARCHAR(500),
-        after_photo_url VARCHAR(500),
         started_at TIMESTAMP NULL,
         washed_at TIMESTAMP NULL,
         wash_duration_minutes INT,
         washer_note TEXT,
         issue_type VARCHAR(100),
         issue_note TEXT,
+        verified BOOLEAN DEFAULT FALSE,
+        verified_at TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
       ) ENGINE=InnoDB
     `);
     console.log("✅ Wash records table ready");
-    console.log("✅ All 5 tables created and ready");
+
+    // 6. Settings table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS settings (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        setting_key VARCHAR(100) UNIQUE NOT NULL,
+        setting_value TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB
+    `);
+    console.log("✅ Settings table ready");
+
+    // 7. Activity log table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS activity_log (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        admin_id INT,
+        action TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE SET NULL
+      ) ENGINE=InnoDB
+    `);
+    console.log("✅ Activity log table ready");
+
+    // 8. Notification Preferences table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS notification_preferences (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_id INT NOT NULL,
+        setting_key VARCHAR(50) NOT NULL,
+        setting_value VARCHAR(10) DEFAULT 'true',
+        UNIQUE KEY unique_user_setting (user_id, setting_key),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB
+    `);
+    console.log("✅ Notification preferences table ready");
+
+    // 9. Billing items table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS billing_items (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        payment_id INT NOT NULL,
+        user_id INT NOT NULL,
+        item_type ENUM('monthly', 'interior', 'other') NOT NULL,
+        item_name VARCHAR(200) DEFAULT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB
+    `);
+    console.log("✅ Billing items table ready");
+    console.log("✅ All 9 tables created and ready");
+
+    // Migrations — add new columns to existing tables (safe to re-run)
+    const migrations = [
+      "ALTER TABLE wash_records ADD COLUMN verified BOOLEAN DEFAULT FALSE",
+      "ALTER TABLE wash_records ADD COLUMN verified_at TIMESTAMP NULL",
+      "ALTER TABLE subscriptions ADD COLUMN frequency VARCHAR(50) DEFAULT 'daily'",
+      "ALTER TABLE wash_records MODIFY COLUMN status ENUM('pending', 'washing', 'completed', 'skipped', 'issue_reported') DEFAULT 'pending'",
+      "ALTER TABLE subscriptions MODIFY COLUMN status ENUM('active','paused','cancelled','pending') DEFAULT 'pending'",
+      // Billing columns on payments table
+      "ALTER TABLE payments ADD COLUMN bill_month VARCHAR(20) DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN bill_from_date DATE DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN bill_to_date DATE DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN bill_note TEXT DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN sent_by_admin INT DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN admin_edited_amount DECIMAL(10,2) DEFAULT NULL",
+      // Manual stats override columns on users table
+      "ALTER TABLE users ADD COLUMN manual_total_washes INT DEFAULT NULL",
+      "ALTER TABLE users ADD COLUMN manual_this_month INT DEFAULT NULL",
+      "ALTER TABLE users ADD COLUMN manual_recent_wash DATE DEFAULT NULL",
+      "ALTER TABLE users ADD COLUMN manual_active_vehicles INT DEFAULT NULL",
+      "ALTER TABLE users ADD COLUMN manual_days_left INT DEFAULT NULL",
+      "ALTER TABLE users ADD COLUMN manual_active_subscriptions INT DEFAULT NULL",
+    ];
+    for (const sql of migrations) {
+      try { await pool.execute(sql); } catch (e) {
+        if (e.code !== "ER_DUP_FIELDNAME") console.error("Migration skip:", e.message);
+      }
+    }
+
+    // Drop unused columns reset_code and reset_expires from users table (safe to re-run)
+    const dropColumns = [
+      "ALTER TABLE users DROP COLUMN reset_code",
+      "ALTER TABLE users DROP COLUMN reset_expires"
+    ];
+    for (const sql of dropColumns) {
+      try {
+        await pool.execute(sql);
+        console.log(`✅ Applied drop column migration: ${sql}`);
+      } catch (e) {
+        // Ignore if columns were already dropped (ER_CANT_DROP_FIELD_OR_KEY)
+        if (e.code !== "ER_CANT_DROP_FIELD_OR_KEY" && e.code !== "ER_CANT_DROP_FIELD") {
+          console.error("Drop column migration skip:", e.message);
+        }
+      }
+    }
+
+    console.log("✅ Migrations applied");
 
     // Seed default accounts
     await seedDefaultAccounts();

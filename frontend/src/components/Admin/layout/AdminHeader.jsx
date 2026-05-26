@@ -30,11 +30,6 @@ export default function AdminHeader({
 
         {/* Right */}
         <div className="flex items-center gap-4">
-          <button className="relative p-2 rounded-md hover:bg-slate-100">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
-
           <button
             onClick={onLogout}
             className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg text-sm"

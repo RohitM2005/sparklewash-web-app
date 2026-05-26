@@ -1,7 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
 import {
-  Camera,
   Calendar,
   CreditCard,
   Shield,
@@ -18,13 +17,6 @@ const features = [
     description:
       "No more waiting in queues. We come to your home, office, or society every day at your preferred time.",
     color: "from-blue-500 to-cyan-500",
-  },
-  {
-    icon: Camera,
-    title: "Photo Proof of Every Wash",
-    description:
-      "Get before & after images via WhatsApp, email, and your dashboard. Complete transparency guaranteed.",
-    color: "from-purple-500 to-pink-500",
   },
   {
     icon: CreditCard,
@@ -72,7 +64,7 @@ const features = [
 
 export default function FeaturesSection() {
   return (
-    <section className="py-16 sm:py-20 lg:py-24 bg-slate-50">
+    <section>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
@@ -96,7 +88,7 @@ export default function FeaturesSection() {
 
           <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base md:text-lg">
             We've thought of everything to make car washing effortless.
-            From booking to payment to proof of service — it's all seamless.
+            From booking to payment — it's all seamless.
           </p>
         </motion.div>
 

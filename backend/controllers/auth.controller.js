@@ -6,6 +6,7 @@ import { createUser, findUserByEmail, getUserById } from "../models/user.model.j
 import { hashPassword, comparePassword } from "../utils/hash.js";
 import { generateToken } from "../utils/jwt.js";
 import pool from "../config/db.js";
+import jwt from "jsonwebtoken";
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL || "ajayparale9@gmail.com";
 
@@ -106,9 +107,9 @@ export const login = async (req, res) => {
 
     // Role validation
     if (role && user.role !== role) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
-        message: `Access denied. This account is registered as ${user.role}, not ${role}.` 
+        message: `Access denied. This account is registered as ${user.role}, not ${role}.`
       });
     }
 
@@ -231,3 +232,46 @@ export const changePassword = async (req, res) => {
     res.status(500).json({ success: false, message: "Password change failed", error: err.message });
   }
 };
+
+// POST /api/auth/reset-password — public endpoint for forgot-password flow
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and new password are required." });
+    }
+
+    if (newPassword.length < 8) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Password must be at least 8 characters." });
+    }
+
+    const user = await findUserByEmail(email);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const hashedNewPassword = await hashPassword(newPassword);
+
+    const [result] = await pool.execute(
+      "UPDATE users SET password = ? WHERE id = ?",
+      [hashedNewPassword, user.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(500).json({ success: false, message: "Failed to update password." });
+    }
+
+    console.log("✅ Password updated for:", email);
+    res.json({ success: true, message: "Password updated successfully." });
+  } catch (err) {
+    console.error("❌ Reset password error:", err);
+    res.status(500).json({ success: false, message: "Password reset failed", error: err.message });
+  }
+};
+

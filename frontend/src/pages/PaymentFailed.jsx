@@ -18,7 +18,7 @@ export default function PaymentFailed() {
         </p>
 
         <Link
-          to="/subscription"
+          to="/dashboard"
           className="block w-full py-2.5 rounded-md text-white bg-red-600 hover:bg-red-700 transition"
         >
           Try Again

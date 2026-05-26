@@ -2,9 +2,9 @@ import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  isToday, isBefore, startOfDay,
+  isToday, isBefore, isAfter, startOfDay,
 } from "date-fns";
-import { CheckCircle2, X, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, Minus, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function WashCalendar({ washRecords = [], currentMonth, onMonthChange }) {
   const monthStart = startOfMonth(currentMonth);
@@ -20,20 +20,19 @@ export default function WashCalendar({ washRecords = [], currentMonth, onMonthCh
     return map;
   }, [washRecords]);
 
-  const getWashStatus = (date) => {
+  const getWashState = (date) => {
     const key = format(date, "yyyy-MM-dd");
-    return washMap[key] || null;
-  };
+    const status = washMap[key];
+    const today = startOfDay(new Date());
+    const dayStart = startOfDay(date);
+    const isFuture = isAfter(dayStart, today);
 
-  const getStatusIcon = (status) => {
-    const size = "w-2.5 h-2.5 sm:w-3.5 sm:h-3.5";
-    switch (status) {
-      case "completed": return <CheckCircle2 className={`${size} text-green-500`} />;
-      case "skipped":
-      case "cancelled": return <X className={`${size} text-red-500`} />;
-      case "scheduled": return <Clock className={`${size} text-blue-500`} />;
-      default: return null;
-    }
+    if (status === "completed") return "completed";
+    if (isFuture) return "neutral";
+    if (isToday(date) && !status) return "neutral";
+    if (status && ["pending", "missed", "skipped", "issue_reported"].includes(status)) return "missed";
+    if (!status && isBefore(dayStart, today)) return "neutral";
+    return "neutral";
   };
 
   const prevMonth = () => {
@@ -49,8 +48,6 @@ export default function WashCalendar({ washRecords = [], currentMonth, onMonthCh
     d.setMonth(d.getMonth() + 1);
     onMonthChange(d);
   };
-
-  const today = startOfDay(new Date());
 
   return (
     <motion.div
@@ -76,7 +73,7 @@ export default function WashCalendar({ washRecords = [], currentMonth, onMonthCh
 
       <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-          <div key={day} className="text-center text-[9px] sm:text-xs font-medium text-slate-500 py-1 sm:py-2">
+          <div key={day} className="text-center text-[10px] sm:text-xs font-medium text-slate-500 py-1 sm:py-2">
             {day}
           </div>
         ))}
@@ -87,42 +84,46 @@ export default function WashCalendar({ washRecords = [], currentMonth, onMonthCh
           <div key={`empty-${i}`} />
         ))}
         {days.map((day) => {
-          const status = getWashStatus(day);
-          const isPast = isBefore(startOfDay(day), today) && !isToday(day);
+          const state = getWashState(day);
           return (
             <div
               key={day.toISOString()}
-              className={`relative aspect-square p-0.5 sm:p-2 rounded-md sm:rounded-lg text-center transition-all ${
-                isToday(day) ? "bg-cyan-50 ring-2 ring-cyan-500"
-                : status === "completed" ? "bg-green-50"
-                : status === "skipped" || status === "cancelled" ? "bg-red-50"
-                : isPast ? "bg-slate-50"
+              className={`relative flex flex-col items-center justify-start gap-1 sm:gap-1.5 rounded-md sm:rounded-lg text-center transition-all ${
+                isToday(day) ? "ring-2 ring-cyan-500 bg-cyan-50"
+                : state === "completed" ? "bg-green-50"
+                : state === "missed" ? "bg-red-50"
                 : "hover:bg-slate-50"
               }`}
+              style={{ minHeight: "60px", padding: "6px 2px" }}
             >
-              <span className={`text-[10px] sm:text-sm ${isToday(day) ? "font-bold text-cyan-700" : "text-slate-700"}`}>
+              {/* Bigger date number */}
+              <span className={`text-sm sm:text-lg font-semibold ${isToday(day) ? "text-cyan-700" : "text-slate-700"}`}>
                 {format(day, "d")}
               </span>
-              <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2">
-                {getStatusIcon(status)}
+              {/* Bigger status icons */}
+              <div>
+                {state === "completed" && <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />}
+                {state === "missed" && <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />}
+                {state === "neutral" && <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300" />}
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap gap-3 sm:gap-4 mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-slate-200">
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 sm:gap-5 mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-slate-200">
         <div className="flex items-center gap-1.5 sm:gap-2 text-slate-600">
-          <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500" />
-          <span className="text-xs sm:text-sm">Completed</span>
+          <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
+          <span className="text-xs sm:text-sm">Car Washed</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 text-slate-600">
-          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
-          <span className="text-xs sm:text-sm">Scheduled</span>
+          <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+          <span className="text-xs sm:text-sm">Car Not Washed</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 text-slate-600">
-          <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
-          <span className="text-xs sm:text-sm">Skipped</span>
+          <Minus className="w-4 h-4 sm:w-5 sm:h-5 text-slate-300" />
+          <span className="text-xs sm:text-sm">Not Available</span>
         </div>
       </div>
     </motion.div>

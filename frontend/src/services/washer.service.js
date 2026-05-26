@@ -47,17 +47,4 @@ export const changeWasherPassword = async (data) => {
   return res.data;
 };
 
-export const uploadWashProof = async (file, type, recordId, onProgress) => {
-  const formData = new FormData();
-  formData.append("image", file);
-  formData.append("type", type);
-  if (recordId) formData.append("wash_record_id", recordId);
 
-  const res = await api.post("/upload/wash-proof", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-    onUploadProgress: (e) => {
-      if (onProgress) onProgress(Math.round((e.loaded * 100) / e.total));
-    },
-  });
-  return res.data;
-};

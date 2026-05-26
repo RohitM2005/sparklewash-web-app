@@ -1,20 +1,16 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Droplets, Mail, Lock } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth(); // Import the global login function
+  const { login } = useAuth();
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
-
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -23,28 +19,18 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    setError("");
-    setMessage("");
-
     if (!form.email || !form.password) {
-      setError("Please enter email and password");
+      toast.error("Please enter email and password");
       return;
     }
 
     try {
       setLoading(true);
-
-      // Hit the backend and store the JWT in state
       await login({ email: form.email, password: form.password });
-
-      setMessage("User logged in successfully 🎉");
-
-      setTimeout(() => {
-        navigate("/");
-      }, 1000);
+      toast.success("Welcome back! 🎉");
+      setTimeout(() => { navigate("/home"); }, 1500);
     } catch (err) {
-      // Show error from backend (e.g. invalid credentials)
-      setError(err.response?.data?.message || err.message || "Login failed");
+      toast.error(err.response?.data?.message || err.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -52,14 +38,31 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 sm:px-6">
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            borderRadius: '10px',
+            background: '#1a1a2e',
+            color: '#fff',
+            border: '1px solid rgba(0, 212, 255, 0.2)',
+          },
+          success: { iconTheme: { primary: '#00d4ff', secondary: '#fff' } },
+          error: { iconTheme: { primary: '#ff4444', secondary: '#fff' } },
+        }}
+      />
 
       <div className="w-full max-w-sm sm:max-w-md bg-white rounded-2xl shadow-xl border p-6 sm:p-8">
 
         {/* Logo Section */}
         <div className="flex flex-col items-center mb-6">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="SparkleWash"
+            className="w-14 h-14 sm:w-16 sm:h-16 object-cover"
+            style={{ borderRadius: '16px' }}
+          />
 
           <h1 className="text-xl sm:text-2xl font-bold mt-3 text-slate-900">
             SparkleWash
@@ -69,20 +72,6 @@ export default function Login() {
             Login to your account
           </p>
         </div>
-
-        {/* Error */}
-        {error && (
-          <div className="bg-red-100 text-red-700 p-2 rounded-md mb-3 text-center text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* Success */}
-        {message && (
-          <div className="bg-green-100 text-green-700 p-2 rounded-md mb-3 text-center text-sm">
-            {message}
-          </div>
-        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -106,14 +95,33 @@ export default function Login() {
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={form.password}
               onChange={handleChange}
               required
-              className="w-full border rounded-md pl-10 pr-3 py-2.5 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+              className="w-full border rounded-md pl-10 pr-10 py-2.5 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
+
+          {/* Forgot Password */}
+          <div className="text-right">
+            <Link
+              to="/forgot-password"
+              className="text-xs sm:text-sm text-cyan-600 hover:underline"
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
 
           {/* Submit */}
           <button
@@ -127,7 +135,7 @@ export default function Login() {
 
         {/* Footer */}
         <p className="text-xs sm:text-sm text-center text-slate-500 mt-6">
-          Don’t have an account?{" "}
+          Don't have an account?{" "}
           <Link
             to="/register"
             className="text-cyan-600 font-medium hover:underline"

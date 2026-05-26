@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Star, Quote } from "lucide-react";
 
 const testimonials = [
-  { name: "Anup Sawant", role: "IT Professional, Pune", initials: "AS", color: "from-cyan-500 to-blue-600", rating: 5, text: "SparkleWash is effortless. I subscribed once and my car has looked brand new every single morning. The WhatsApp photo proof gives real peace of mind." },
+  { name: "Anup Sawant", role: "IT Professional, Pune", initials: "AS", color: "from-cyan-500 to-blue-600", rating: 5, text: "SparkleWash is effortless. I subscribed once and my car has looked brand new every single morning. The daily consistency gives real peace of mind." },
   { name: "Manoj Bhope", role: "Business Owner, Pune", initials: "MB", color: "from-violet-500 to-purple-600", rating: 5, text: "The team is punctual, professional, and genuinely care about the job. Feels like having a personal car care service. Absolutely worth every rupee." },
   { name: "Rahul Bhattacharya", role: "Doctor, Pune", initials: "RB", color: "from-emerald-500 to-green-600", rating: 5, text: "After a long shift I never worry about car cleaning. SparkleWash handles it perfectly. Quality is consistently excellent — it shows they genuinely care." },
   { name: "Karthik Kumar", role: "Society Secretary, Pune", initials: "KK", color: "from-orange-500 to-red-500", rating: 5, text: "We signed up 12 residents through SparkleWash. Managing everything from the dashboard is seamless. Superb service for apartment complexes." },
@@ -18,7 +18,7 @@ const stats = [
 
 export default function TestimonialsSection() {
   return (
-    <section className="py-20 sm:py-24 lg:py-28 bg-slate-50 relative overflow-hidden">
+    <section className="relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] bg-cyan-100/40 rounded-full blur-3xl" />
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />

@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useOutletContext } from "react-router-dom";
 import {
-  Menu, Bell, Car, Calendar, CheckCircle2, TrendingUp,
+  Menu, Bell, Car, Calendar, TrendingUp,
   History, CreditCard, Receipt, Settings as SettingsIcon,
-  User, Shield, Trash2, Plus,
+  User, Shield, Trash2, Plus, Loader2, Eye, EyeOff,
+  ArrowLeft, Pencil, X, Droplets,
 } from "lucide-react";
-import { differenceInDays, startOfMonth } from "date-fns";
+import { startOfMonth } from "date-fns";
+import toast, { Toaster } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 import Sidebar from "../components/Dashboard/SideBar";
 import StatsCard from "../components/Dashboard/StatsCard";
 import WashCalendar from "../components/Dashboard/WashCalendar";
-import RecentWashes from "../components/Dashboard/RecentWashes";
 import SubscriptionCard from "../components/Dashboard/SubscriptionCard";
 import RenewSubscriptionBtn from "../components/Dashboard/RenewSubscriptionBtn";
 import Loader from "../components/common/Loader";
 import { getDashboardData } from "../services/dashboard.service";
+import api from "../services/api";
+
+const toastStyle = { style: { background: "#1e293b", color: "#fff" } };
 
 /* ============================================ */
 /* 1. DASHBOARD LAYOUT                          */
@@ -47,7 +52,7 @@ export function DashboardLayout() {
           <span className="font-bold text-slate-900 text-base">SparkleWash</span>
         </header>
         <main className="flex-1">
-          <Outlet context={{ user }} />
+          <Outlet context={{ user, setUser }} />
         </main>
       </div>
     </div>
@@ -55,11 +60,10 @@ export function DashboardLayout() {
 }
 
 /* ============================================ */
-/* 2. DASHBOARD OVERVIEW                        */
+/* 2. DASHBOARD OVERVIEW (3 stat cards only)    */
 /* ============================================ */
 
 export function DashboardOverview() {
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [error, setError] = useState("");
@@ -92,44 +96,31 @@ export function DashboardOverview() {
     );
   }
 
-  const { user, subscription, washRecords = [] } = dashboardData;
-  const completedWashes = washRecords.filter((w) => w.status === "completed").length;
-  const daysRemaining = subscription?.end_date
-    ? differenceInDays(new Date(subscription.end_date), new Date())
-    : 0;
+  const { user, subscription, stats = {} } = dashboardData;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <Toaster position="top-right" />
       <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-sm text-slate-500 mt-0.5">Welcome back, {user?.full_name?.split(" ")[0]}</p>
         </div>
-        <button className="relative p-2 rounded-md border border-slate-200 hover:bg-slate-100 transition">
-          <Bell className="w-5 h-5" />
-          {dashboardData?.notifications > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-              {dashboardData.notifications}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <BackToHomeBtn />
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <StatsCard title="Total Washes" value={completedWashes || 0} subtitle="All time" icon={CheckCircle2} color="cyan" delay={0} />
-        <StatsCard title="This Month" value={completedWashes || 0} subtitle="Completed" icon={Calendar} color="green" delay={0.05} />
-        <StatsCard title="Active Vehicles" value={subscription ? 1 : 0} subtitle="Subscribed" icon={Car} color="purple" delay={0.1} />
-        <StatsCard title="Days Left" value={daysRemaining > 0 ? daysRemaining : 0} subtitle="Until renewal" icon={TrendingUp} color="orange" delay={0.15} />
+      {/* 3 Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <StatsCard title="Active Vehicles" value={stats.activeVehicles || 0} subtitle="Registered" icon={Car} color="purple" delay={0} />
+        <StatsCard title="Days Left" value={stats.daysLeft || 0} subtitle="Until renewal" icon={TrendingUp} color="orange" delay={0.05} />
+        <StatsCard title="Active Subscriptions" value={stats.activeSubscriptions || 0} subtitle="Current plans" icon={Calendar} color="cyan" delay={0.1} />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-          <SubscriptionCard subscription={subscription} />
-          <WashCalendar washRecords={washRecords} currentMonth={currentMonth} onMonthChange={setCurrentMonth} />
-        </div>
-        <div>
-          <RecentWashes washes={washRecords} />
-        </div>
+      {/* Subscription Card only — no Wash Calendar here */}
+      <div className="max-w-3xl">
+        <SubscriptionCard subscription={subscription} />
       </div>
     </div>
   );
@@ -179,14 +170,7 @@ export function WashHistory() {
             <p className="text-red-500 text-sm">{error}</p>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
-            <div className="lg:col-span-2">
-              <WashCalendar washRecords={washRecords} currentMonth={currentMonth} onMonthChange={setCurrentMonth} />
-            </div>
-            <div>
-              <RecentWashes washes={washRecords} />
-            </div>
-          </div>
+          <WashCalendar washRecords={washRecords} currentMonth={currentMonth} onMonthChange={setCurrentMonth} />
         )}
       </div>
     </div>
@@ -194,12 +178,135 @@ export function WashHistory() {
 }
 
 /* ============================================ */
-/* 4. VEHICLES                                  */
+/* BACK TO HOME BUTTON                          */
 /* ============================================ */
 
+function BackToHomeBtn() {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate('/home')}
+      className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+      style={{ border: '1.5px solid rgba(0, 212, 255, 0.4)', color: '#00d4ff', background: 'transparent' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0, 212, 255, 0.06)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+    >
+      <ArrowLeft className="w-4 h-4" />
+      Back to Home
+    </button>
+  );
+}
+
+/* ============================================ */
+/* 4. VEHICLES — Full CRUD                      */
+/* ============================================ */
+
+const typeLabels = { micro: "Hatchback", sedan: "Sedan", mini_suv: "Mini SUV", suv: "SUV" };
+
+function VehicleFormModal({ vehicle, onClose, onSaved }) {
+  const isEdit = !!vehicle;
+  const [form, setForm] = useState({
+    vehicle_number: vehicle?.vehicle_number || "",
+    vehicle_model: vehicle?.vehicle_model || "",
+    vehicle_type: vehicle?.vehicle_type || "sedan",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!form.vehicle_number.trim()) return toast.error("Vehicle number required");
+    if (!form.vehicle_model.trim()) return toast.error("Model required");
+    setSaving(true);
+    try {
+      if (isEdit) {
+        await api.patch(`/customer/vehicles/${vehicle.id}`, form);
+        toast.success("Vehicle updated successfully");
+      } else {
+        await api.post("/customer/vehicles", form);
+        toast.success("Vehicle added successfully");
+      }
+      onSaved?.(); onClose();
+    } catch (err) { toast.error(err.response?.data?.message || "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }} onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div style={{ height: 4, background: "linear-gradient(90deg, #a855f7, #6366f1)" }} />
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-900">{isEdit ? "Edit Vehicle" : "Add Vehicle"}</h2>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm text-slate-600 mb-1 block">Vehicle Number</label>
+              <input value={form.vehicle_number} onChange={e => setForm(p => ({ ...p, vehicle_number: e.target.value.toUpperCase() }))}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="MH 12 XX 1234" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-600 mb-1 block">Model Name</label>
+              <input value={form.vehicle_model} onChange={e => setForm(p => ({ ...p, vehicle_model: e.target.value }))}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Maruti Swift" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-600 mb-1 block">Vehicle Type</label>
+              <select value={form.vehicle_type} onChange={e => setForm(p => ({ ...p, vehicle_type: e.target.value }))}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <option value="micro">Hatchback</option>
+                <option value="sedan">Sedan</option>
+                <option value="mini_suv">Mini SUV</option>
+                <option value="suv">SUV</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium hover:bg-slate-50">Cancel</button>
+            <button onClick={handleSubmit} disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? "Saving..." : isEdit ? "Save Changes" : "Add Vehicle"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Vehicles() {
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editVehicle, setEditVehicle] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchVehicles = () => {
+    setLoading(true);
+    api.get("/customer/vehicles")
+      .then(res => setVehicles(res.data.vehicles || []))
+      .catch(() => setVehicles([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchVehicles(); }, []);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/customer/vehicles/${deleteTarget.id}`);
+      setVehicles(prev => prev.filter(v => v.id !== deleteTarget.id));
+      toast.success("Vehicle removed");
+      setDeleteTarget(null);
+    } catch { toast.error("Failed to delete"); }
+    finally { setDeleting(false); }
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <Toaster position="top-right" />
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div className="flex items-center gap-3">
@@ -211,53 +318,180 @@ export function Vehicles() {
               <p className="text-sm text-slate-500 mt-0.5">Manage your registered vehicles</p>
             </div>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:opacity-90 transition self-start sm:self-auto">
-            <Plus className="w-4 h-4" /> Add Vehicle
-          </button>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 sm:p-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <Car className="w-8 h-8 text-slate-400" />
+        {loading ? (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {[1,2].map(i => <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 animate-pulse"><div className="h-6 bg-slate-100 rounded mb-3"/><div className="h-4 bg-slate-100 rounded w-2/3 mb-2"/><div className="h-4 bg-slate-100 rounded w-1/2"/></div>)}
           </div>
-          <h3 className="text-base font-semibold text-slate-900 mb-2">No vehicles added yet</h3>
-          <p className="text-sm text-slate-500 mb-6 max-w-xs mx-auto">Add your vehicle to start booking car wash services.</p>
-          <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:opacity-90 transition mx-auto">
-            <Plus className="w-4 h-4" /> Add Your First Vehicle
-          </button>
-        </div>
+        ) : vehicles.length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-2xl p-10 sm:p-16 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+              <Car className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-base font-semibold text-slate-900 mb-2">No vehicles added yet</h3>
+            <p className="text-sm text-slate-500 max-w-xs mx-auto">Book a service to add your vehicle.</p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {vehicles.map(v => (
+              <div key={v.id} className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                      <Car className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-base font-bold text-slate-900 tracking-wide">{v.vehicle_number}</p>
+                      <p className="text-xs text-slate-500">{v.vehicle_model || "—"} · {typeLabels[v.vehicle_type] || v.vehicle_type}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                  <div><span className="text-slate-400">Plan:</span> <span className="font-medium text-slate-700">{v.plan_name || "No Sub"}</span></div>
+                  <div><span className="text-slate-400">Status:</span> {v.sub_status === "active" ? <span className="text-green-600 font-medium">● Active</span> : <span className="text-slate-400">No Sub</span>}</div>
+                  <div><span className="text-slate-400">Added:</span> <span className="font-medium text-slate-700">{v.created_at ? new Date(v.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</span></div>
+                </div>
+                {/* Start Date & Renewal Date */}
+                <div className="flex gap-6 mb-3 text-xs">
+                  <div>
+                    <span className="text-slate-400 block mb-0.5">Start Date</span>
+                    <span className="font-semibold text-slate-700">{v.start_date ? new Date(v.start_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block mb-0.5">End Date (Renewal)</span>
+                    <span className="font-semibold" style={{ color: "#0066ff" }}>{v.renewal_date ? new Date(v.renewal_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-3 border-t border-slate-100">
+                  <button onClick={() => setDeleteTarget(v)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition">
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Form Modal */}
+        {showForm && <VehicleFormModal vehicle={editVehicle} onClose={() => setShowForm(false)} onSaved={fetchVehicles} />}
+
+        {/* Delete Confirm */}
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }} onClick={() => setDeleteTarget(null)}>
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold mb-2">Remove Vehicle</h3>
+              <p className="text-sm text-slate-600 mb-6">Are you sure you want to remove <strong>{deleteTarget.vehicle_number}</strong>? This cannot be undone.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium hover:bg-slate-50">Cancel</button>
+                <button onClick={handleDelete} disabled={deleting}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 flex items-center justify-center gap-2">
+                  {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {deleting ? "Removing..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 /* ============================================ */
-/* 5. BILLING                                   */
+/* 5. BILLING — Unpaid bills + payment history   */
 /* ============================================ */
 
+function PaymentStatusBadge({ status }) {
+  const s = status || "pending";
+  const colors = { paid: "bg-green-50 text-green-700", success: "bg-green-50 text-green-700", captured: "bg-green-50 text-green-700", pending: "bg-amber-50 text-amber-700", created: "bg-amber-50 text-amber-700", failed: "bg-red-50 text-red-600" };
+  const dots = { paid: "bg-green-500", success: "bg-green-500", captured: "bg-green-500", pending: "bg-amber-500", created: "bg-amber-500", failed: "bg-red-500" };
+  return <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${colors[s]||colors.pending}`}><span className={`w-1.5 h-1.5 rounded-full ${dots[s]||dots.pending}`}/>{s}</span>;
+}
+
 export function Billing() {
-  const [subscription, setSubscription] = useState(null);
+  const [payments, setPayments] = useState([]);
+  const [unpaidBills, setUnpaidBills] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadingBills, setLoadingBills] = useState(true);
+  const [paying, setPaying] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await getDashboardData();
-        setSubscription(data?.subscription || null);
-      } catch (err) {
-        setError(err.response?.data?.message || "Failed to load billing data");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    // Fetch payment history
+    getDashboardData()
+      .then(data => setPayments(data?.payments || []))
+      .catch(() => setPayments([]))
+      .finally(() => setLoading(false));
+
+    // Fetch unpaid bills
+    api.get("/customer/billing/unpaid")
+      .then(res => setUnpaidBills(res.data.data || []))
+      .catch(() => setUnpaidBills([]))
+      .finally(() => setLoadingBills(false));
   }, []);
 
-  if (loading) return <Loader />;
+  const fetchUnpaidBills = () => {
+    api.get("/customer/billing/unpaid")
+      .then(res => setUnpaidBills(res.data.data || []))
+      .catch(() => {});
+  };
+
+  const handlePayBill = async (bill) => {
+    setPaying(bill.payment_id);
+    try {
+      const res = await api.post("/customer/billing/pay", {
+        payment_id: bill.payment_id,
+        amount: bill.total,
+      });
+
+      const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder";
+
+      const options = {
+        key: RAZORPAY_KEY,
+        amount: Math.round(bill.total * 100),
+        currency: "INR",
+        name: "SparkleWash",
+        description: `Bill for ${bill.bill_month || ""}`,
+        order_id: res.data.razorpay_order_id,
+        handler: async (response) => {
+          try {
+            await api.post("/customer/billing/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              payment_id: bill.payment_id,
+            });
+            toast.success("Bill paid successfully! 🎉", toastStyle);
+            fetchUnpaidBills();
+          } catch (err) {
+            toast.error("Payment verification failed: " + (err.response?.data?.error || err.message));
+          }
+          setPaying(null);
+        },
+        theme: { color: "#00d4ff" },
+        modal: {
+          ondismiss: () => { setPaying(null); toast.error("Payment cancelled"); },
+        },
+      };
+
+      if (typeof window.Razorpay !== "undefined") {
+        new window.Razorpay(options).open();
+      } else {
+        toast.error("Payment gateway not available. Please refresh.");
+        setPaying(null);
+      }
+    } catch (error) {
+      toast.error("Payment failed: " + (error.response?.data?.error || error.message));
+      setPaying(null);
+    }
+  };
+
+  if (loading && loadingBills) return <Loader />;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <Toaster position="top-right" />
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-3 mb-6 sm:mb-8">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
@@ -269,20 +503,95 @@ export function Billing() {
           </div>
         </div>
 
-        {error ? (
-          <div className="bg-white border border-red-100 rounded-2xl p-6 text-center">
-            <p className="text-red-500 text-sm">{error}</p>
+        {/* ─── Unpaid Bills ─── */}
+        {loadingBills ? (
+          <div className="space-y-4 mb-8">
+            {[1,2].map(i => <div key={i} className="bg-white border rounded-2xl p-6 animate-pulse"><div className="h-6 bg-slate-100 rounded mb-3" /><div className="h-4 bg-slate-100 rounded w-2/3" /></div>)}
           </div>
-        ) : subscription ? (
-          <RenewSubscriptionBtn subscription={subscription} onRenew={(updated) => setSubscription(updated)} />
+        ) : unpaidBills.length > 0 ? (
+          <div className="space-y-5 mb-8">
+            {unpaidBills.map(bill => (
+              <div key={bill.payment_id} className="rounded-2xl p-5 sm:p-6 shadow-sm bill-due-card">
+
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">💳 Bill Due</h3>
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full" style={{ background: "#fee2e2", color: "#dc2626" }}>Pending Payment</span>
+                </div>
+
+                <div className="text-sm text-slate-600 space-y-1 mb-4">
+                  <div><strong>Month:</strong> {bill.bill_month || "—"}</div>
+                  <div><strong>Period:</strong> {bill.from_date ? new Date(bill.from_date).toLocaleDateString("en-IN") : "—"} – {bill.to_date ? new Date(bill.to_date).toLocaleDateString("en-IN") : "—"}</div>
+                  <div><strong>Plan:</strong> {bill.plan_name || "—"}</div>
+                  {bill.vehicle_number && <div><strong>Vehicle:</strong> {bill.vehicle_number}</div>}
+                  {bill.bill_note && (
+                    <div className="mt-2 p-2 rounded-lg text-xs bill-note">📝 {bill.bill_note}</div>
+                  )}
+                </div>
+
+                {/* Line items */}
+                {bill.items?.length > 0 && (
+                  <div className="bg-white rounded-xl p-4 mb-4">
+                    {bill.items.map((item, i) => (
+                      <div key={i} className="flex justify-between py-2 text-sm" style={{ borderBottom: i < bill.items.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                        <span className="text-slate-500">{item.item_name || item.item_type}</span>
+                        <span className="font-medium text-slate-800">₹{item.amount}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between font-bold text-base mt-3 pt-3" style={{ borderTop: "2px solid #00d4ff" }}>
+                      <span>Total</span>
+                      <span style={{ color: "#0066ff" }}>₹{bill.total}</span>
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={() => handlePayBill(bill)} disabled={paying === bill.payment_id}
+                  className="w-full py-3 rounded-xl text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{ background: "linear-gradient(135deg, #00d4ff, #0066ff)" }}>
+                  {paying === bill.payment_id ? (<><Loader2 className="w-4 h-4 animate-spin" />Processing...</>) : `✓ Pay Bill — ₹${bill.total}`}
+                </button>
+              </div>
+            ))}
+          </div>
         ) : (
+          <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center mb-8">
+            <div className="text-4xl mb-3">✅</div>
+            <p className="font-semibold text-slate-800">No pending bills</p>
+            <p className="text-xs text-slate-400 mt-1">Your account is all clear</p>
+          </div>
+        )}
+
+        {/* ─── Payment History ─── */}
+        <h2 className="text-lg font-bold text-slate-900 mb-4">Payment History</h2>
+        {payments.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
             <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
               <Receipt className="w-8 h-8 text-slate-400" />
             </div>
             <h3 className="text-base font-semibold text-slate-900 mb-2">No billing history</h3>
-            <p className="text-sm text-slate-500 mb-6 max-w-xs mx-auto">Subscribe to a plan to see your billing details here.</p>
-            <a href="/subscription" className="inline-block px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition">View Plans</a>
+            <p className="text-sm text-slate-500 max-w-xs mx-auto">Subscribe to a plan to see your billing details here.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {["Date", "Plan", "Amount", "Method", "Status"].map(h => (
+                    <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {payments.map((p, i) => (
+                  <tr key={p.id || i} className={`hover:bg-cyan-50/30 transition ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
+                    <td className="px-5 py-3 text-slate-600 text-xs">{p.paid_at ? new Date(p.paid_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN") : "—"}</td>
+                    <td className="px-5 py-3 text-slate-700 font-medium">{p.plan_name || "—"}</td>
+                    <td className="px-5 py-3 text-slate-900 font-medium">₹{p.amount || 0}</td>
+                    <td className="px-5 py-3 text-slate-600 capitalize">{p.payment_method || "—"}</td>
+                    <td className="px-5 py-3"><PaymentStatusBadge status={p.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -290,21 +599,23 @@ export function Billing() {
   );
 }
 
+
 /* ============================================ */
-/* 6. SETTINGS                                  */
+/* 6. SETTINGS (Full DB-connected)              */
 /* ============================================ */
 
 const settingsTabs = [
   { id: "profile", label: "Profile", icon: User },
-  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
 ];
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("profile");
+  const ctx = useOutletContext();
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <Toaster position="top-right" />
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-3 mb-6 sm:mb-8">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0">
@@ -330,84 +641,232 @@ export function Settings() {
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6">
-
-          {activeTab === "profile" && (
-            <div className="space-y-5">
-              <h3 className="font-semibold text-slate-900">Profile Information</h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
-                  <input type="text" className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Your full name" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number</label>
-                  <input type="tel" className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="+91 XXXXX XXXXX" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
-                  <input type="email" className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="your@email.com" />
-                </div>
-              </div>
-              <button className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition">
-                Save Changes
-              </button>
-            </div>
-          )}
-
-          {activeTab === "notifications" && (
-            <div className="space-y-2">
-              <h3 className="font-semibold text-slate-900 mb-4">Notification Preferences</h3>
-              {[
-                { label: "Wash reminders", desc: "Get notified before your scheduled wash" },
-                { label: "Subscription alerts", desc: "Renewal and expiry notifications" },
-                { label: "Promotions", desc: "Offers and discounts from SparkleWash" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{item.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:bg-cyan-500 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-4" />
-                  </label>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === "security" && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-slate-900">Security Settings</h3>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Current Password</label>
-                <input type="password" className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">New Password</label>
-                <input type="password" className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm New Password</label>
-                <input type="password" className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
-              </div>
-              <button className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition">
-                Update Password
-              </button>
-              <div className="pt-4 border-t border-slate-200">
-                <h4 className="font-medium text-red-600 mb-2 flex items-center gap-2 text-sm">
-                  <Trash2 className="w-4 h-4" /> Danger Zone
-                </h4>
-                <p className="text-sm text-slate-500 mb-3">Permanently delete your account and all associated data.</p>
-                <button className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 transition">
-                  Delete Account
-                </button>
-              </div>
-            </div>
-          )}
-
+          {activeTab === "profile" && <ProfileTab onUserUpdate={ctx?.setUser} />}
+          {activeTab === "security" && <SecurityTab />}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Profile Tab ── */
+function ProfileTab({ onUserUpdate }) {
+  const [form, setForm] = useState({ full_name: "", phone: "", email: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get("/customer/profile")
+      .then(res => {
+        const p = res.data.profile || {};
+        setForm({ full_name: p.full_name || "", phone: p.phone || "", email: p.email || "" });
+      })
+      .catch(() => toast.error("Failed to load profile"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    if (!form.full_name.trim()) return toast.error("Name is required");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return toast.error("Valid email required");
+    if (form.phone && !/^[6-9]\d{9}$/.test(form.phone.replace(/[\s\-+91]/g, ""))) return toast.error("Valid Indian phone required");
+
+    setSaving(true);
+    try {
+      await api.patch("/customer/profile", form);
+      toast.success("Profile updated successfully", toastStyle);
+      onUserUpdate?.(prev => ({ ...prev, full_name: form.full_name, email: form.email }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update");
+    } finally { setSaving(false); }
+  };
+
+  if (loading) return <div className="animate-pulse space-y-4">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}</div>;
+
+  return (
+    <div className="space-y-5">
+      <h3 className="font-semibold text-slate-900">Profile Information</h3>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+          <input type="text" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number</label>
+          <input type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="+91 XXXXX XXXXX" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+          <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+        </div>
+      </div>
+      <button onClick={handleSave} disabled={saving}
+        className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition disabled:opacity-50 flex items-center gap-2">
+        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+        {saving ? "Saving..." : "Save Changes"}
+      </button>
+    </div>
+  );
+}
+
+/* ── Notifications Tab ── */
+function NotificationsTab() {
+  const [prefs, setPrefs] = useState({ wash_reminders: true, subscription_alerts: true, promotions: true });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get("/customer/notification-preferences")
+      .then(res => setPrefs(res.data.preferences || {}))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleToggle = async (key) => {
+    const newVal = !prefs[key];
+    setPrefs(p => ({ ...p, [key]: newVal }));
+    try {
+      await api.patch("/customer/notification-preferences", { [key]: newVal });
+      toast.success("Preferences saved", toastStyle);
+    } catch { toast.error("Failed to save"); }
+  };
+
+  if (loading) return <div className="animate-pulse space-y-4">{[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl" />)}</div>;
+
+  const items = [
+    { key: "wash_reminders", label: "Wash reminders", desc: "Get notified before your scheduled wash" },
+    { key: "subscription_alerts", label: "Subscription alerts", desc: "Renewal and expiry notifications" },
+    { key: "promotions", label: "Promotions", desc: "Offers and discounts from SparkleWash" },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <h3 className="font-semibold text-slate-900 mb-4">Notification Preferences</h3>
+      {items.map((item) => (
+        <div key={item.key} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
+          <div>
+            <p className="text-sm font-medium text-slate-900">{item.label}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
+          </div>
+          <button type="button" onClick={() => handleToggle(item.key)}
+            className={`w-10 h-6 rounded-full relative transition-colors duration-200 ml-4 flex-shrink-0 ${prefs[item.key] ? "bg-cyan-500" : "bg-slate-200"}`}>
+            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform duration-200 shadow ${prefs[item.key] ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Security Tab ── */
+function SecurityTab() {
+  const [form, setForm] = useState({ current_password: "", new_password: "", confirm_password: "" });
+  const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!form.current_password || !form.new_password) return toast.error("All fields required");
+    if (form.new_password.length < 8) return toast.error("Password must be at least 8 characters");
+    if (form.new_password !== form.confirm_password) return toast.error("Passwords do not match");
+
+    setSaving(true);
+    try {
+      await api.patch("/customer/change-password", { current_password: form.current_password, new_password: form.new_password });
+      toast.success("Password updated", toastStyle);
+      setForm({ current_password: "", new_password: "", confirm_password: "" });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to change password");
+    } finally { setSaving(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await api.delete("/customer/account");
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      toast.success("Account deleted", toastStyle);
+      window.location.href = "/";
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete account");
+    } finally { setDeleting(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-slate-900">Security Settings</h3>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Current Password</label>
+        <div className="relative">
+          <input type={showCurrent ? "text" : "password"} value={form.current_password} onChange={e => setForm(p => ({ ...p, current_password: e.target.value }))}
+            className="w-full px-3 py-2.5 pr-10 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
+          <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" tabIndex={-1}>
+            {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">New Password</label>
+        <div className="relative">
+          <input type={showNew ? "text" : "password"} value={form.new_password} onChange={e => setForm(p => ({ ...p, new_password: e.target.value }))}
+            className="w-full px-3 py-2.5 pr-10 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
+          <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" tabIndex={-1}>
+            {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm New Password</label>
+        <div className="relative">
+          <input type={showConfirm ? "text" : "password"} value={form.confirm_password} onChange={e => setForm(p => ({ ...p, confirm_password: e.target.value }))}
+            className="w-full px-3 py-2.5 pr-10 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
+          <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" tabIndex={-1}>
+            {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+      </div>
+      <button onClick={handleChangePassword} disabled={saving}
+        className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition disabled:opacity-50 flex items-center gap-2">
+        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+        {saving ? "Updating..." : "Update Password"}
+      </button>
+
+      {/* Danger Zone */}
+      <div className="pt-4 border-t border-slate-200">
+        <h4 className="font-medium text-red-600 mb-2 flex items-center gap-2 text-sm">
+          <Trash2 className="w-4 h-4" /> Danger Zone
+        </h4>
+        <p className="text-sm text-slate-500 mb-3">Permanently delete your account and all associated data.</p>
+        <button onClick={() => setShowDeleteModal(true)}
+          className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 transition">
+          Delete Account
+        </button>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
+          onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div style={{ height: 4, background: "linear-gradient(90deg, #ef4444, #dc2626)", borderRadius: "8px 8px 0 0", margin: "-24px -24px 16px -24px" }} />
+            <h3 className="text-lg font-bold mb-2">Delete Account</h3>
+            <p className="text-sm text-slate-600 mb-6">This will permanently delete your account and all vehicles, subscriptions, wash records, and payments. This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium hover:bg-slate-50">Cancel</button>
+              <button onClick={handleDeleteAccount} disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 flex items-center justify-center gap-2">
+                {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {deleting ? "Deleting..." : "Yes, Delete My Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

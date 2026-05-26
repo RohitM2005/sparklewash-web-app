@@ -8,14 +8,16 @@ import RoleSelection from "./pages/RoleSelection";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Services from "./pages/Services";
-import SubscriptionPlans from "./pages/SubscriptionPlans";
+import ForgotPassword from "./pages/ForgotPassword";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFailed from "./pages/PaymentFailed";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import RefundPolicyPage from "./pages/RefundPolicyPage";
 
 /* ================= USER PAGES ================= */
 import Booking from "./pages/Booking";
-import Subscription from "./pages/Subscription";
+import BookingConfirmedPage from "./pages/BookingConfirmedPage";
 
 /* ================= DASHBOARD (NESTED) ================= */
 import {
@@ -36,14 +38,12 @@ import WasherLogin from "./pages/WasherLogin";
 import StatsOverview from "./components/Admin/dashboard/StatsOverview";
 import UsersPage from "./components/Admin/users/UsersPage";
 import CustomersTable from "./components/Admin/customers/CustomersTable";
-import PaymentStats from "./components/Admin/payments/PaymentStats";
 import PaymentsTable from "./components/Admin/payments/PaymentsTable";
-import FailedPayments from "./components/Admin/payments/FailedPayments";
 import WashersTable from "./components/Admin/washers/WashersTable";
 import VehiclesTable from "./components/Admin/vehicles/VehiclesTable";
 import SubscriptionsTable from "./components/Admin/subscriptions/SubscriptionsTable";
-import SubscriptionAnalytics from "./components/Admin/subscriptions/SubscriptionAnalytics";
 import WashLogsTable from "./components/Admin/washlogs/WashLogsTable";
+import AssignVehicles from "./components/Admin/washlogs/AssignVehicles";
 import ComplaintsPage from "./components/Admin/complaints/ComplaintsPage";
 import SystemPage from "./components/Admin/system/SystemPage";
 
@@ -68,10 +68,12 @@ function App() {
 
         {/* ===== PUBLIC ROUTES ===== */}
         <Route path="/home" element={<Home />} />
-        <Route path="/services" element={<Services />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/plans" element={<SubscriptionPlans />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+        <Route path="/refund-policy" element={<RefundPolicyPage />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/payment-failed" element={<PaymentFailed />} />
 
@@ -92,17 +94,24 @@ function App() {
         </Route>
 
         {/* ===== BOOKING ===== */}
-        <Route path="/booking/*" element={<Booking />} />
-
-        {/* ===== SUBSCRIPTION ===== */}
         <Route
-          path="/subscription"
+          path="/booking/confirmed"
           element={
             <ProtectedRoute role="user">
-              <Subscription />
+              <BookingConfirmedPage />
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/booking/*"
+          element={
+            <ProtectedRoute role="user">
+              <Booking />
+            </ProtectedRoute>
+          }
+        />
+
+
 
         {/* ===== ADMIN ROUTES ===== */}
         <Route path="/admin/login" element={<AdminLogin />} />
@@ -117,30 +126,12 @@ function App() {
           <Route index element={<StatsOverview />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="customers" element={<CustomersTable />} />
-          <Route path="payments" element={
-            <div className="space-y-6">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Payments & Bills</h1>
-              <PaymentStats />
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-                <PaymentsTable />
-              </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-                <FailedPayments />
-              </div>
-            </div>
-          } />
+          <Route path="payments" element={<PaymentsTable />} />
           <Route path="washers" element={<WashersTable />} />
           <Route path="vehicles" element={<VehiclesTable />} />
-          <Route path="subscriptions" element={
-            <div className="space-y-6">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Subscriptions</h1>
-              <SubscriptionAnalytics />
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-                <SubscriptionsTable />
-              </div>
-            </div>
-          } />
+          <Route path="subscriptions" element={<SubscriptionsTable />} />
           <Route path="washlogs" element={<WashLogsTable />} />
+          <Route path="washlogs/assign" element={<AssignVehicles />} />
           <Route path="complaints" element={<ComplaintsPage />} />
           <Route path="system" element={<SystemPage />} />
         </Route>
@@ -155,12 +146,9 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<WasherDashboardHome />} />
+          <Route index element={<TodayVehiclesList />} />
           <Route path="vehicles" element={<TodayVehiclesList />} />
           <Route path="vehicles/:recordId/wash" element={<WashProcess />} />
-          <Route path="completed" element={<CompletedList />} />
-          <Route path="history" element={<CompletedList />} />
-          <Route path="profile" element={<WasherProfile />} />
         </Route>
 
       </Routes>
