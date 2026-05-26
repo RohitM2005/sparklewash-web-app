@@ -21,8 +21,8 @@ dist/
 # Ignore archives & backups
 *.zip
 backend.zip
-*.sql
-sparklewash_backup.sql
+/sparklewash_backup.sql
+/*_backup.sql
 
 # Ignore system files
 .DS_Store
