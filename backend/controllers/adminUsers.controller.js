@@ -202,10 +202,11 @@ export const importUsers = async (req, res) => {
 // Get customers (role=customer) with vehicle count + subscription status
 export const getCustomers = async (req, res) => {
   try {
-    const search = req.query.search || "";
+    const { search = "", startDate, endDate } = req.query;
     let query = `
       SELECT u.id, u.name, u.full_name, u.email, u.phone, u.address, u.status, u.created_at,
              COUNT(DISTINCT v.id) as vehicle_count,
+             GROUP_CONCAT(DISTINCT v.vehicle_number SEPARATOR ', ') as vehicle_numbers,
              MAX(s.status) as subscription_status
       FROM users u
       LEFT JOIN vehicles v ON v.user_id = u.id
@@ -214,9 +215,19 @@ export const getCustomers = async (req, res) => {
     `;
     const params = [];
     if (search) {
-      query += " AND (u.name LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)";
+      query += " AND (u.name LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ? OR v.vehicle_number LIKE ?)";
       const s = `%${search}%`;
-      params.push(s, s, s, s);
+      params.push(s, s, s, s, s);
+    }
+    if (startDate && endDate) {
+      query += " AND DATE(u.created_at) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      query += " AND DATE(u.created_at) >= ?";
+      params.push(startDate);
+    } else if (endDate) {
+      query += " AND DATE(u.created_at) <= ?";
+      params.push(endDate);
     }
     query += " GROUP BY u.id ORDER BY u.created_at DESC";
 

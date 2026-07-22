@@ -1,17 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Check, Droplets, Sparkles } from "lucide-react";
-
-const vehiclePricing = {
-  micro:    { label: "Micro",    dailyWash: 999,  interiorCleaning: 300 },
-  sedan:    { label: "Sedan",    dailyWash: 1199, interiorCleaning: 300 },
-  mini_suv: { label: "Mini SUV", dailyWash: 1199, interiorCleaning: 300 },
-  suv:      { label: "SUV",      dailyWash: 1399, interiorCleaning: 300 },
-};
+import { fetchPublicSettings, getSystemPricingMap, DEFAULT_PRICING } from "../../services/systemSettingsService";
 
 const timeSlots = [
   { value: "morning",   emoji: "🌅", label: "Morning",   time: "6AM–9AM"   },
-  { value: "afternoon", emoji: "☀️", label: "Afternoon", time: "12PM–3PM"  },
   { value: "evening",   emoji: "🌆", label: "Evening",   time: "5PM–8PM"   },
 ];
 
@@ -43,7 +36,18 @@ const services = [
 ];
 
 export default function PlanSelection({ formData, updateFormData }) {
-  const vehicle = vehiclePricing[formData?.vehicle_type] || vehiclePricing.sedan;
+  const [vehiclePricing, setVehiclePricing] = useState(DEFAULT_PRICING);
+
+  useEffect(() => {
+    fetchPublicSettings().then((data) => {
+      if (data && data.pricing) {
+        setVehiclePricing(getSystemPricingMap(data.pricing));
+      }
+    });
+  }, []);
+
+  const vehicleTypeKey = formData?.vehicle_type || "sedan";
+  const vehicle = vehiclePricing[vehicleTypeKey] || vehiclePricing.sedan || DEFAULT_PRICING.sedan;
 
   const selectedServices = formData?.selected_services || {
     dailyWash: false,
@@ -218,7 +222,7 @@ export default function PlanSelection({ formData, updateFormData }) {
         <p className="text-[10px] sm:text-xs font-semibold text-cyan-600 uppercase tracking-wide mb-3">
           Daily Wash Time
         </p>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 max-w-sm mx-auto w-full">
           {timeSlots.map((slot) => {
             const isSelected = formData?.preferred_time === slot.value;
             return (

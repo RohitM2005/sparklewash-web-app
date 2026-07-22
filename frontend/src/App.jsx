@@ -1,8 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./Layout";
-
-/* ================= ROLE SELECTION ================= */
-import RoleSelection from "./pages/RoleSelection";
 
 /* ================= PUBLIC PAGES ================= */
 import Home from "./pages/Home";
@@ -28,6 +25,7 @@ import {
   Billing,
   Settings,
 } from "./pages/DashboardPages";
+import CustomerComplaintsPage from "./pages/CustomerComplaintsPage";
 
 /* ================= ADMIN / WASHER ================= */
 import AdminDashboard from "./pages/AdminDashboard";
@@ -57,14 +55,16 @@ import WasherProfile from "./components/washer/WasherProfile";
 
 /* ================= ROUTE PROTECTION ================= */
 import ProtectedRoute from "./utils/protectedRoute";
+import MaintenanceGuard from "./components/common/MaintenanceGuard";
 
 function App() {
   return (
-    <Layout>
+    <MaintenanceGuard>
+      <Layout>
       <Routes>
 
-        {/* ===== ROLE SELECTION (DEFAULT) ===== */}
-        <Route path="/" element={<RoleSelection />} />
+        {/* ===== DEFAULT ROUTE — redirect to Home ===== */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
 
         {/* ===== PUBLIC ROUTES ===== */}
         <Route path="/home" element={<Home />} />
@@ -90,6 +90,7 @@ function App() {
           <Route path="wash-history" element={<WashHistory />} />
           <Route path="my-vehicles" element={<Vehicles />} />
           <Route path="billing" element={<Billing />} />
+          <Route path="complaints" element={<CustomerComplaintsPage />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
@@ -153,6 +154,7 @@ function App() {
 
       </Routes>
     </Layout>
+    </MaintenanceGuard>
   );
 }
 

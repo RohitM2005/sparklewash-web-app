@@ -5,7 +5,6 @@ import api from "../../services/api";
 
 const TIME_SLOTS = [
   { value: "morning", emoji: "🌅", label: "Morning", sub: "6AM–9AM" },
-  { value: "afternoon", emoji: "☀️", label: "Afternoon", sub: "12PM–3PM" },
   { value: "evening", emoji: "🌆", label: "Evening", sub: "5PM–8PM" },
 ];
 
@@ -101,12 +100,12 @@ export default function CustomerForm({ formData, updateFormData }) {
               onChange={(e) => updateFormData("preferred_date", e.target.value)} required
               className="mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition" />
           </Field>
-          <div>
+            <div>
             <label className="text-slate-700 text-sm font-medium">Preferred Time <span className="text-red-400">*</span></label>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="mt-2 flex gap-2 justify-center">
               {TIME_SLOTS.map((slot) => (
                 <button key={slot.value} type="button" onClick={() => updateFormData("preferred_time", slot.value)}
-                  className={`flex flex-col items-center justify-center p-2 sm:p-2.5 rounded-lg border-2 transition-all ${safe.preferred_time === slot.value ? "border-cyan-500 bg-cyan-50 text-cyan-700" : "border-slate-200 bg-white text-slate-500 hover:border-cyan-200"
+                  className={`flex flex-col items-center justify-center p-2 sm:p-3 rounded-lg border-2 transition-all flex-1 max-w-[140px] ${safe.preferred_time === slot.value ? "border-cyan-500 bg-cyan-50 text-cyan-700" : "border-slate-200 bg-white text-slate-500 hover:border-cyan-200"
                     }`}>
                   <span className="text-lg sm:text-xl">{slot.emoji}</span>
                   <span className="text-[10px] sm:text-xs font-semibold mt-0.5">{slot.label}</span>
@@ -118,17 +117,7 @@ export default function CustomerForm({ formData, updateFormData }) {
         </div>
       </div>
 
-      {/* Special Instructions */}
-      <div>
-        <label htmlFor="special_instructions" className="text-slate-700 text-sm font-medium">
-          Special Instructions <span className="text-slate-400 font-normal text-xs">(Optional)</span>
-        </label>
-        <textarea id="special_instructions" rows={3}
-          placeholder="e.g. Gate code 1234, park near Gate B, no strong fragrance..."
-          value={safe.special_instructions}
-          onChange={(e) => updateFormData("special_instructions", e.target.value)}
-          className="mt-2 w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition resize-none bg-white" />
-      </div>
+
     </motion.div>
   );
 }

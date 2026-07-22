@@ -4,7 +4,6 @@ import {
   Calendar,
   CreditCard,
   Shield,
-  Clock,
   Smartphone,
   Droplets,
   MapPin,
@@ -32,13 +31,7 @@ const features = [
       "Track your wash history, view invoices, manage subscriptions all from your personal dashboard.",
     color: "from-orange-500 to-red-500",
   },
-  {
-    icon: Clock,
-    title: "Flexible Time Slots",
-    description:
-      "Choose morning, afternoon, or evening slots. We work around your schedule.",
-    color: "from-cyan-500 to-blue-500",
-  },
+
   {
     icon: Shield,
     title: "Trained Professionals",
@@ -88,12 +81,12 @@ export default function FeaturesSection() {
 
           <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base md:text-lg">
             We've thought of everything to make car washing effortless.
-            From booking to payment — it's all seamless.
+            From booking to payment it's all seamless.
           </p>
         </motion.div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {features.map((feature, index) => {
             const Icon = feature.icon;
             const gradient = feature.color || "from-cyan-500 to-blue-500";

@@ -15,6 +15,8 @@ import razorpayRoutes from "./routes/razorpay.routes.js";
 import billingRoutes from "./routes/billing.routes.js";
 
 import customerSettingsRoutes from "./routes/customerSettings.routes.js";
+import customerComplaintsRoutes from "./routes/customerComplaints.routes.js";
+import publicSettingsRoutes from "./routes/publicSettings.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
@@ -38,6 +40,7 @@ app.use(express.json());
 
 // Health check
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.use("/api/public", publicSettingsRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "SparkleWash Backend Running" });
@@ -55,6 +58,7 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/customer", customerHistoryRoutes);
 app.use("/api/customer", customerSettingsRoutes);
+app.use("/api/customer", customerComplaintsRoutes);
 
 // Admin (all admin routes consolidated)
 app.use("/api/admin", adminRoutes);

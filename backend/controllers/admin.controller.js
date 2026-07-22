@@ -4,22 +4,41 @@
 import pool from "../config/db.js";
 import { hashPassword } from "../utils/hash.js";
 
-// Dashboard stats
+// Dashboard stats — supports optional ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 export const getAdminStats = async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
+    const { startDate, endDate } = req.query;
+
+    // Build date clause helpers
+    const dateClause = (col) => {
+      if (startDate && endDate) return ` AND DATE(${col}) BETWEEN ? AND ?`;
+      if (startDate) return ` AND DATE(${col}) >= ?`;
+      if (endDate) return ` AND DATE(${col}) <= ?`;
+      return "";
+    };
+    const dateParams = () => {
+      if (startDate && endDate) return [startDate, endDate];
+      if (startDate) return [startDate];
+      if (endDate) return [endDate];
+      return [];
+    };
 
     const [[{ totalCustomers }]] = await pool.execute(
-      "SELECT COUNT(*) as totalCustomers FROM users WHERE role = 'customer'"
+      `SELECT COUNT(*) as totalCustomers FROM users WHERE role = 'customer'${dateClause("created_at")}`,
+      [...dateParams()]
     );
     const [[{ activeSubscriptions }]] = await pool.execute(
-      "SELECT COUNT(*) as activeSubscriptions FROM subscriptions WHERE status = 'active'"
+      `SELECT COUNT(*) as activeSubscriptions FROM subscriptions WHERE status = 'active'${dateClause("created_at")}`,
+      [...dateParams()]
     );
     const [[{ totalRevenue }]] = await pool.execute(
-      "SELECT COALESCE(SUM(amount), 0) as totalRevenue FROM payments WHERE status IN ('success','paid','captured')"
+      `SELECT COALESCE(SUM(amount), 0) as totalRevenue FROM payments WHERE status IN ('success','paid','captured')${dateClause("created_at")}`,
+      [...dateParams()]
     );
     const [[{ totalVehicles }]] = await pool.execute(
-      "SELECT COUNT(*) as totalVehicles FROM vehicles"
+      `SELECT COUNT(*) as totalVehicles FROM vehicles WHERE 1=1${dateClause("created_at")}`,
+      [...dateParams()]
     );
     const [[{ totalWashers }]] = await pool.execute(
       "SELECT COUNT(*) as totalWashers FROM users WHERE role = 'washer'"
@@ -32,6 +51,18 @@ export const getAdminStats = async (req, res) => {
       "SELECT COUNT(*) as todayPending FROM wash_records WHERE wash_date = ? AND status = 'pending'",
       [today]
     );
+    const [[{ totalComplaints }]] = await pool.execute(
+      `SELECT COUNT(*) as totalComplaints FROM complaints WHERE 1=1${dateClause("created_at")}`,
+      [...dateParams()]
+    );
+    const [[{ openComplaints }]] = await pool.execute(
+      `SELECT COUNT(*) as openComplaints FROM complaints WHERE status = 'Open'${dateClause("created_at")}`,
+      [...dateParams()]
+    );
+    const [[{ resolvedComplaints }]] = await pool.execute(
+      `SELECT COUNT(*) as resolvedComplaints FROM complaints WHERE status = 'Resolved'${dateClause("created_at")}`,
+      [...dateParams()]
+    );
 
     res.json({
       success: true,
@@ -42,6 +73,9 @@ export const getAdminStats = async (req, res) => {
       totalWashers,
       todayCompleted,
       todayPending,
+      totalComplaints,
+      openComplaints,
+      resolvedComplaints,
     });
   } catch (error) {
     console.error("Admin stats error:", error);
@@ -49,9 +83,23 @@ export const getAdminStats = async (req, res) => {
   }
 };
 
-// All payments
+// All payments — supports optional ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 export const getAllPayments = async (req, res) => {
   try {
+    const { startDate, endDate } = req.query;
+    let dateWhere = "";
+    const params = [];
+    if (startDate && endDate) {
+      dateWhere = " AND DATE(p.created_at) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      dateWhere = " AND DATE(p.created_at) >= ?";
+      params.push(startDate);
+    } else if (endDate) {
+      dateWhere = " AND DATE(p.created_at) <= ?";
+      params.push(endDate);
+    }
+
     const [payments] = await pool.execute(`
       SELECT p.id, p.amount, p.status, p.payment_method,
              p.razorpay_payment_id, p.paid_at, p.created_at,
@@ -60,8 +108,9 @@ export const getAllPayments = async (req, res) => {
       FROM payments p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN subscriptions s ON p.subscription_id = s.id
+      WHERE 1=1${dateWhere}
       ORDER BY p.created_at DESC
-    `);
+    `, params);
     res.json({ success: true, payments });
   } catch (error) {
     console.error("Get payments error:", error);
@@ -204,9 +253,23 @@ export const getAllWashRecords = async (req, res) => {
   }
 };
 
-// All vehicles
+// All vehicles — supports optional ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 export const getAllVehicles = async (req, res) => {
   try {
+    const { startDate, endDate } = req.query;
+    let dateWhere = "";
+    const params = [];
+    if (startDate && endDate) {
+      dateWhere = " AND DATE(v.created_at) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      dateWhere = " AND DATE(v.created_at) >= ?";
+      params.push(startDate);
+    } else if (endDate) {
+      dateWhere = " AND DATE(v.created_at) <= ?";
+      params.push(endDate);
+    }
+
     const [vehicles] = await pool.execute(`
       SELECT v.id, v.vehicle_number, v.vehicle_model, v.vehicle_type, v.created_at,
              u.full_name as owner_name, u.email as owner_email, u.phone as owner_phone,
@@ -216,8 +279,9 @@ export const getAllVehicles = async (req, res) => {
       LEFT JOIN users u ON v.user_id = u.id
       LEFT JOIN subscriptions s ON s.vehicle_id = v.id AND s.status = 'active'
       LEFT JOIN users w ON s.washer_id = w.id
+      WHERE 1=1${dateWhere}
       ORDER BY v.created_at DESC
-    `);
+    `, params);
     res.json({ success: true, vehicles });
   } catch (error) {
     console.error("Get vehicles error:", error);

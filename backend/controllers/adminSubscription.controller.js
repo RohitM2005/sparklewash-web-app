@@ -3,6 +3,20 @@ import pool from "../config/db.js";
 
 export const getAllSubscriptions = async (req, res) => {
   try {
+    const { startDate, endDate } = req.query;
+    let dateWhere = "";
+    const params = [];
+    if (startDate && endDate) {
+      dateWhere = " AND DATE(s.created_at) BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      dateWhere = " AND DATE(s.created_at) >= ?";
+      params.push(startDate);
+    } else if (endDate) {
+      dateWhere = " AND DATE(s.created_at) <= ?";
+      params.push(endDate);
+    }
+
     const [rows] = await pool.execute(
       `SELECT s.*, 
               v.vehicle_number, v.vehicle_type, v.vehicle_model,
@@ -12,7 +26,9 @@ export const getAllSubscriptions = async (req, res) => {
        LEFT JOIN vehicles v ON s.vehicle_id = v.id
        LEFT JOIN users u ON s.user_id = u.id
        LEFT JOIN users w ON s.washer_id = w.id
-       ORDER BY s.created_at DESC`
+       WHERE 1=1${dateWhere}
+       ORDER BY s.created_at DESC`,
+      params
     );
     res.json(rows);
   } catch (error) {

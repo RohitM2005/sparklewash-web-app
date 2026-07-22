@@ -28,3 +28,6 @@ backend.zip
 .DS_Store
 Thumbs.db
 desktop.ini
+powershell.bat
+backend/scratch/
+frontend/.env.production

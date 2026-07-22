@@ -25,28 +25,36 @@ export const createAndSendBill = async (req, res) => {
       bill_note,
     } = req.body;
 
-    if (!user_id || !subscription_id || !base_amount) {
+    if (!user_id || base_amount === undefined || base_amount === null) {
       return res.status(400).json({
         success: false,
-        error: "user_id, subscription_id and base_amount are required",
+        error: "user_id and base_amount are required",
       });
     }
 
-    // Get subscription renewal_date to calculate cycle
-    const [subRows] = await pool.execute(
-      `SELECT renewal_date, start_date, plan_name FROM subscriptions WHERE id = ?`,
-      [subscription_id]
-    );
-    if (!subRows.length) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Subscription not found" });
+    let subId = subscription_id;
+    let sub = null;
+    if (subId) {
+      const [subRows] = await pool.execute(
+        `SELECT id, renewal_date, start_date, plan_name FROM subscriptions WHERE id = ?`,
+        [subId]
+      );
+      if (subRows.length) sub = subRows[0];
     }
 
-    const sub = subRows[0];
+    if (!sub) {
+      const [activeSubs] = await pool.execute(
+        `SELECT id, renewal_date, start_date, plan_name FROM subscriptions WHERE user_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1`,
+        [user_id]
+      );
+      if (activeSubs.length) {
+        sub = activeSubs[0];
+        subId = sub.id;
+      }
+    }
 
-    // Bill period = from current renewal_date back 1 month TO renewal_date
-    const renewalDate = new Date(sub.renewal_date);
+    const now = new Date();
+    const renewalDate = sub?.renewal_date ? new Date(sub.renewal_date) : now;
     const fromDate = new Date(renewalDate);
     fromDate.setMonth(fromDate.getMonth() - 1);
     fromDate.setDate(fromDate.getDate() + 1);
@@ -55,9 +63,7 @@ export const createAndSendBill = async (req, res) => {
       renewalDate.getMonth() + 1
     ).padStart(2, "0")}`;
     const fromDateStr = fromDate.toISOString().split("T")[0];
-    const toDateStr = sub.renewal_date
-      ? new Date(sub.renewal_date).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0];
+    const toDateStr = renewalDate.toISOString().split("T")[0];
 
     // Calculate grand total
     const interiorTotal = (interior_items || []).reduce(
@@ -78,7 +84,7 @@ export const createAndSendBill = async (req, res) => {
       VALUES (?, ?, ?, 'pending', NOW(), ?, ?, ?, ?, ?)`,
       [
         user_id,
-        subscription_id,
+        subId || null,
         grandTotal,
         billMonth,
         fromDateStr,
@@ -292,7 +298,7 @@ export const getUnpaidBills = async (req, res) => {
       [userId]
     );
 
-    // Attach line items to each bill
+    // Attach line items, vehicle billing breakdown, and addon services to each bill
     for (let bill of unpaidBills) {
       const [items] = await pool.execute(
         `SELECT item_type, item_name, amount
@@ -301,6 +307,29 @@ export const getUnpaidBills = async (req, res) => {
         [bill.payment_id]
       );
       bill.items = items;
+
+      const [vehicle_billing] = await pool.execute(
+        `SELECT v.id, v.vehicle_number, v.vehicle_model, v.vehicle_type,
+                s.plan_name, s.monthly_price
+         FROM vehicles v
+         LEFT JOIN subscriptions s ON s.vehicle_id = v.id AND s.user_id = v.user_id AND s.status = 'active'
+         WHERE v.user_id = ?
+         ORDER BY v.created_at ASC`,
+        [userId]
+      );
+      bill.vehicle_billing = vehicle_billing;
+
+      const [addon_services] = await pool.execute(
+        `SELECT a.id, a.service_type, a.amount,
+                DATE_FORMAT(a.service_date, '%Y-%m-%d') as service_date,
+                v.vehicle_number, v.vehicle_model
+         FROM addon_services a
+         LEFT JOIN vehicles v ON a.vehicle_id = v.id
+         WHERE a.user_id = ?
+         ORDER BY COALESCE(a.service_date, a.created_at) DESC`,
+        [userId]
+      );
+      bill.addon_services = addon_services;
     }
 
     return res.status(200).json({ success: true, data: unpaidBills });
@@ -462,7 +491,7 @@ export const confirmBooking = async (req, res) => {
     }
 
     // Safely handle preferred_time
-    const validTimes = ["morning", "afternoon", "evening"];
+    const validTimes = ["morning", "evening"];
     const safeTime = validTimes.includes(preferred_time)
       ? preferred_time
       : "morning";

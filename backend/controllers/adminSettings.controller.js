@@ -42,7 +42,7 @@ export const getPreferences = async (req, res) => {
 
 export const savePreferences = async (req, res) => {
   try {
-    const allowed = ["maintenance_mode","morning_slot_enabled","afternoon_slot_enabled","evening_slot_enabled","service_areas"];
+    const allowed = ["maintenance_mode","morning_slot_enabled","evening_slot_enabled","service_areas"];
     const data = {};
     for (const key of allowed) { if (req.body[key] !== undefined) data[key] = req.body[key]; }
     await upsertSettings(data);
@@ -75,7 +75,7 @@ export const savePricing = async (req, res) => {
     }
     await upsertSettings(data);
     await logActivity(req.user?.id, "Updated pricing settings");
-    res.json({ success: true, message: "Pricing updated successfully" });
+    res.json({ success: true, message: "Pricing updated successfully and applied system-wide." });
   } catch (error) {
     res.status(500).json({ message: "Failed to save pricing", error: error.message });
   }

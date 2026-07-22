@@ -41,7 +41,7 @@ export default function AdminLogin() {
 
     try {
       setLoading(true);
-      await login({ email: form.email, password: form.password });
+      await login({ email: form.email, password: form.password }, 'admin');
 
       // Re-check role after login (user state updates async)
       setMessage("Logged in. Redirecting to admin...");

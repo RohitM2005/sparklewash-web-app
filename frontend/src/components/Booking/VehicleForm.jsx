@@ -1,18 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import VehicleDemoModal from "./VehicleDemoModal";
+import { fetchPublicSettings, getSystemPricingMap, DEFAULT_PRICING } from "../../services/systemSettingsService";
 
-const vehicleTypes = [
-  { value: "micro", label: "Micro", icon: "🚗", dailyWash: 999, interiorCleaning: 300, description: "Alto, Wagon R, Nano" },
-  { value: "sedan", label: "Sedan", icon: "🚙", dailyWash: 1199, interiorCleaning: 300, description: "Swift, Dzire, Honda City" },
-  { value: "mini_suv", label: "Mini SUV", icon: "🚐", dailyWash: 1199, interiorCleaning: 300, description: "Brezza, Nexon, Venue" },
-  { value: "suv", label: "SUV", icon: "🏎️", dailyWash: 1399, interiorCleaning: 300, description: "Fortuner, Innova, Creta" },
+const BASE_VEHICLES = [
+  { value: "micro", label: "Hatchback", demoImage: "/images/vehicle-demo/micro-demo.jpeg", key: "micro", description: "Alto, Wagon R, Nano" },
+  { value: "Hatchback", label: "Hatchback", demoImage: "/images/vehicle-demo/micro-demo.jpeg", key: "micro", description: "Alto, Wagon R, Nano" },
+  { value: "sedan", label: "Sedan", demoImage: "/images/vehicle-demo/sedan-demo.jpeg", key: "sedan", description: "Swift, Dzire, Honda City" },
+  { value: "mini_suv", label: "Mini SUV", demoImage: "/images/vehicle-demo/minisuv-demo.jpeg", key: "mini_suv", description: "Brezza, Nexon, Venue" },
+  { value: "suv", label: "SUV", demoImage: "/images/vehicle-demo/suv-demo.jpeg", key: "suv", description: "Fortuner, Innova, Creta" },
 ];
 
 export default function VehicleForm({ formData, updateFormData }) {
+  const [pricingMap, setPricingMap] = useState(DEFAULT_PRICING);
+
+  useEffect(() => {
+    fetchPublicSettings().then((data) => {
+      if (data && data.pricing) {
+        setPricingMap(getSystemPricingMap(data.pricing));
+      }
+    });
+  }, []);
+
+  const vehicleTypes = [
+    { value: "micro", label: "Hatchback", demoImage: "/images/vehicle-demo/micro-demo.jpeg", dailyWash: pricingMap.micro?.dailyWash || 999, interiorCleaning: pricingMap.micro?.interiorCleaning || 300, description: "Alto, Wagon R, Nano" },
+    { value: "sedan", label: "Sedan", demoImage: "/images/vehicle-demo/sedan-demo.jpeg", dailyWash: pricingMap.sedan?.dailyWash || 1199, interiorCleaning: pricingMap.sedan?.interiorCleaning || 300, description: "Swift, Dzire, Honda City" },
+    { value: "mini_suv", label: "Mini SUV", demoImage: "/images/vehicle-demo/minisuv-demo.jpeg", dailyWash: pricingMap.mini_suv?.dailyWash || 1199, interiorCleaning: pricingMap.mini_suv?.interiorCleaning || 300, description: "Brezza, Nexon, Venue" },
+    { value: "suv", label: "SUV", demoImage: "/images/vehicle-demo/suv-demo.jpeg", dailyWash: pricingMap.suv?.dailyWash || 1399, interiorCleaning: pricingMap.suv?.interiorCleaning || 300, description: "Fortuner, Innova, Creta" },
+  ];
   const [selectedServices, setSelectedServices] = useState({
     dailyWash: false,
     interiorCleaning: false,
   });
+
+  // Demo modal state
+  const [selectedDemo, setSelectedDemo] = useState(null);
 
   const handleNumberChange = (value) => {
     const formatted = value.toUpperCase().replace(/[^A-Z0-9 ]/g, "");
@@ -79,7 +101,25 @@ export default function VehicleForm({ formData, updateFormData }) {
                   onChange={() => updateFormData("vehicle_type", type.value)}
                   className="hidden"
                 />
-                <span className="text-2xl sm:text-3xl">{type.icon}</span>
+                {/* Demo button — replaces emoji icon */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setSelectedDemo({ title: type.label, image: type.demoImage });
+                  }}
+                  style={demoButtonStyle}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#0EA5E9";
+                    e.currentTarget.style.color = "#ffffff";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#ffffff";
+                    e.currentTarget.style.color = "#0EA5E9";
+                  }}
+                >
+                  Demo
+                </button>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-900 text-sm sm:text-base leading-tight">
                     {type.label}
@@ -258,6 +298,30 @@ export default function VehicleForm({ formData, updateFormData }) {
           />
         </div>
       </div>
+
+      {/* Vehicle Demo Modal */}
+      <VehicleDemoModal
+        demo={selectedDemo}
+        onClose={() => setSelectedDemo(null)}
+      />
     </motion.div>
   );
 }
+
+// Inline style for the Demo button (avoids Tailwind conflicts)
+const demoButtonStyle = {
+  height: "30px",
+  padding: "6px 12px",
+  borderRadius: "999px",
+  background: "#ffffff",
+  border: "1px solid #0EA5E9",
+  color: "#0EA5E9",
+  fontSize: "12px",
+  fontWeight: 600,
+  cursor: "pointer",
+  transition: "background 0.18s ease, color 0.18s ease",
+  lineHeight: 1,
+  flexShrink: 0,
+  display: "inline-flex",
+  alignItems: "center",
+};

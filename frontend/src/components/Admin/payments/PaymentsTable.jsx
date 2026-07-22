@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CreditCard, TrendingUp, Clock, Download, Plus, X, Pencil, Loader2, Trash2 } from "lucide-react";
+import { Search, User, CreditCard, TrendingUp, Clock, Download, Plus, X, Pencil, Loader2, Trash2 } from "lucide-react";
 import api from "../../../services/api";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -29,170 +29,320 @@ function StatusBadge({ status }) {
 function BillModal({ mode, editData, onClose, onSuccess }) {
   const isEdit = mode === "edit";
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(editData?.user_id || "");
-  const [selectedSub, setSelectedSub] = useState(null);
-  const [baseAmount, setBaseAmount] = useState(editData?.base || "");
-  const [interiorItems, setInteriorItems] = useState(editData?.interiors || []);
-  const [otherItems, setOtherItems] = useState(editData?.others || []);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerDetails, setCustomerDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  const [washerCharges, setWasherCharges] = useState("");
   const [billNote, setBillNote] = useState(editData?.bill_note || "");
   const [sending, setSending] = useState(false);
-  const [loadingSub, setLoadingSub] = useState(false);
 
   useEffect(() => {
     if (!isEdit) {
-      api.get("/admin/customers").then(r => setCustomers(r.data.customers || [])).catch(() => {});
+      api.get("/admin/customers")
+        .then(r => setCustomers(r.data.customers || []))
+        .catch(() => {});
     }
   }, [isEdit]);
 
-  // When editing, load breakdown
-  useEffect(() => {
-    if (isEdit && editData?.id) {
-      api.get(`/admin/billing/${editData.id}/breakdown`).then(r => {
-        const items = r.data.data?.items || [];
-        const monthly = items.find(i => i.item_type === "monthly");
-        setBaseAmount(monthly?.amount || 0);
-        setInteriorItems(items.filter(i => i.item_type === "interior").map(i => ({ name: i.item_name, amount: i.amount })));
-        setOtherItems(items.filter(i => i.item_type === "other").map(i => ({ name: i.item_name, amount: i.amount })));
-        setBillNote(editData.bill_note || "");
-      }).catch(() => {});
-    }
-  }, [isEdit, editData]);
-
-  const handleCustomerSelect = async (customerId) => {
-    setSelectedCustomer(customerId);
-    if (!customerId) return;
-    setLoadingSub(true);
+  const handleSelectCustomer = async (c) => {
+    setSelectedCustomer(c);
+    setSearchQuery("");
+    setDropdownOpen(false);
+    setLoadingDetails(true);
     try {
-      const res = await api.get(`/admin/customers/${customerId}/details`);
-      const sub = res.data?.subscription;
-      if (sub) {
-        setSelectedSub(sub);
-        setBaseAmount(sub.monthly_price || "");
-      } else {
-        setSelectedSub(null);
-        toast.error("No active subscription found for this customer");
-      }
-    } catch { toast.error("Failed to load customer details"); }
-    finally { setLoadingSub(false); }
+      const res = await api.get(`/admin/customers/${c.id}/details`);
+      setCustomerDetails(res.data);
+    } catch {
+      toast.error("Failed to load customer billing details");
+      setCustomerDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
-  const grandTotal = useMemo(() => {
-    const base = Number(baseAmount) || 0;
-    const interior = interiorItems.reduce((sum, i) => sum + Number(i.amount || 0), 0);
-    const other = otherItems.reduce((sum, i) => sum + Number(i.amount || 0), 0);
-    return base + interior + other;
-  }, [baseAmount, interiorItems, otherItems]);
+  const filteredCustomers = useMemo(() => {
+    if (!searchQuery.trim()) return customers.slice(0, 10);
+    const q = searchQuery.toLowerCase();
+    return customers.filter(c => {
+      const nameMatch = (c.full_name || c.name || "").toLowerCase().includes(q);
+      const emailMatch = (c.email || "").toLowerCase().includes(q);
+      const phoneMatch = (c.phone || "").toLowerCase().includes(q);
+      const vehicleMatch = (c.vehicle_numbers || "").toLowerCase().includes(q);
+      return nameMatch || emailMatch || phoneMatch || vehicleMatch;
+    });
+  }, [customers, searchQuery]);
+
+  const vehicleBilling = customerDetails?.vehicle_billing || [];
+  const addonServices  = customerDetails?.addon_services || [];
+
+  const plansTotal = useMemo(() => {
+    return vehicleBilling.reduce((sum, v) => sum + Number(v.monthly_price || 0), 0);
+  }, [vehicleBilling]);
+
+  const addonTotal = useMemo(() => {
+    return addonServices.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+  }, [addonServices]);
+
+  const grandTotal = plansTotal + addonTotal;
+  const washerAmount = Number(washerCharges) || 0;
+  const finalBillAmount = grandTotal + washerAmount;
 
   const handleSubmit = async () => {
-    if (!isEdit && (!selectedCustomer || !selectedSub)) { toast.error("Select a customer with active subscription"); return; }
-    if (!baseAmount || Number(baseAmount) <= 0) { toast.error("Enter base amount"); return; }
+    if (!isEdit && !selectedCustomer) {
+      return toast.error("Please search and select a customer");
+    }
+    if (!isEdit && !customerDetails) {
+      return toast.error("Customer billing data not loaded");
+    }
+
     setSending(true);
     try {
       if (isEdit) {
         await api.patch(`/admin/billing/${editData.id}/edit`, {
-          base_amount: Number(baseAmount), interior_items: interiorItems, other_items: otherItems, bill_note: billNote,
+          base_amount: plansTotal || Number(editData.base || 0),
+          bill_note: billNote,
         });
         toast.success("Bill updated successfully!", ts);
       } else {
+        const activeSub = customerDetails?.subscription || vehicleBilling.find(v => v.sub_id)?.sub_id;
+        const subId = typeof activeSub === 'object' ? activeSub.id : activeSub || null;
+
+        const interiorItems = addonServices.map(a => ({
+          name: a.service_type || "Add-On Service",
+          amount: Number(a.amount || 0),
+        }));
+
+        const otherItems = washerAmount > 0
+          ? [{ name: "Washer Charges", amount: washerAmount }]
+          : [];
+
         await api.post("/admin/billing/create-and-send", {
-          user_id: selectedCustomer, subscription_id: selectedSub.id,
-          base_amount: Number(baseAmount), interior_items: interiorItems, other_items: otherItems, bill_note: billNote,
+          user_id: selectedCustomer.id,
+          subscription_id: subId,
+          base_amount: plansTotal,
+          interior_items: interiorItems,
+          other_items: otherItems,
+          bill_note: billNote,
         });
         toast.success("Bill sent to customer!", ts);
       }
       onSuccess?.();
       onClose();
-    } catch (e) { toast.error(e.response?.data?.error || "Failed"); }
-    finally { setSending(false); }
+    } catch (e) {
+      toast.error(e.response?.data?.error || e.response?.data?.message || "Failed to send bill");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }} onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
+      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)" }} onClick={onClose}>
+      <div className="bg-white rounded-2xl w-[95vw] sm:w-full max-w-lg shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div style={{ height: 4, background: "linear-gradient(90deg, #00d4ff, #0066ff)" }} />
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-bold text-slate-900">{isEdit ? "✏️ Edit Bill" : "📤 Create & Send Bill"}</h2>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>
+        
+        {/* Header */}
+        <div className="p-4 sm:p-6 pb-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              {isEdit ? "✏️ Edit Bill" : "📤 Create & Send Bill"}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">Automated calculation from Customer Billing Summary</p>
           </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"><X className="w-5 h-5" /></button>
+        </div>
 
-          {/* Customer Select (create only) */}
+        {/* Scrollable Body */}
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1" style={{ WebkitOverflowScrolling: "touch" }}>
+          
+          {/* 1. Searchable Customer Select (Create Mode) */}
           {!isEdit && (
-            <div className="mb-4">
-              <label className="text-sm font-medium text-slate-700 mb-1.5 block">Select Customer</label>
-              <select value={selectedCustomer} onChange={e => handleCustomerSelect(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                <option value="">-- Select Customer --</option>
-                {customers.map(c => <option key={c.id} value={c.id}>{c.full_name || c.name} ({c.email})</option>)}
-              </select>
-              {loadingSub && <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Loading subscription...</p>}
-              {selectedSub && <p className="text-xs text-green-600 mt-1">✅ {selectedSub.plan_name} — ₹{selectedSub.monthly_price}/mo — Renewal: {selectedSub.renewal_date ? new Date(selectedSub.renewal_date).toLocaleDateString() : "—"}</p>}
+            <div>
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5 block">
+                Select Customer
+              </label>
+
+              {selectedCustomer ? (
+                /* Selected Customer Badge */
+                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {selectedCustomer.full_name || selectedCustomer.name}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {selectedCustomer.email} {selectedCustomer.phone ? `· ${selectedCustomer.phone}` : ""}
+                      </p>
+                      {selectedCustomer.vehicle_numbers && (
+                        <p className="text-[11px] text-cyan-700 font-mono font-medium mt-0.5 truncate">
+                          {selectedCustomer.vehicle_numbers}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setSelectedCustomer(null); setCustomerDetails(null); }}
+                    className="text-xs font-semibold text-cyan-600 hover:text-cyan-700 px-2.5 py-1 bg-white rounded-lg border border-cyan-200 flex-shrink-0 ml-2 shadow-xs"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                /* Search Input + Unclipped Results List */
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={e => { setSearchQuery(e.target.value); setDropdownOpen(true); }}
+                      onFocus={() => setDropdownOpen(true)}
+                      placeholder="Search by name, email, phone, or vehicle number…"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck="false"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white shadow-sm"
+                    />
+                  </div>
+
+                  {/* Results List — Inline Layout (Never Clipped) */}
+                  {dropdownOpen && (
+                    <div
+                      className="bg-slate-50 border border-slate-200 rounded-xl p-1 max-h-64 sm:max-h-72 overflow-y-auto divide-y divide-slate-200/60 shadow-inner"
+                      style={{ WebkitOverflowScrolling: "touch" }}
+                    >
+                      {filteredCustomers.length === 0 ? (
+                        <p className="p-3 text-xs text-slate-400 text-center">No matching customers found</p>
+                      ) : (
+                        filteredCustomers.map(c => (
+                          <div
+                            key={c.id}
+                            onClick={() => handleSelectCustomer(c)}
+                            className="p-2.5 sm:p-3 hover:bg-cyan-50/80 bg-white rounded-lg cursor-pointer transition flex items-center justify-between gap-2 my-0.5"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-900 truncate">
+                                {c.full_name || c.name}
+                              </p>
+                              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                {c.email} {c.phone ? `· 📞 ${c.phone}` : ""}
+                              </p>
+                            </div>
+                            {c.vehicle_numbers && (
+                              <span className="text-[10px] font-mono bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-md flex-shrink-0 border border-cyan-100">
+                                {c.vehicle_numbers}
+                              </span>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Base Amount */}
-          <div className="mb-4">
-            <label className="text-sm font-medium text-slate-700 mb-1.5 block">Monthly Base Amount (₹)</label>
-            <input type="number" value={baseAmount} onChange={e => setBaseAmount(e.target.value)} placeholder="e.g. 1199"
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
-          </div>
-
-          {/* Interior Items */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-slate-700">Interior Cleaning</label>
-              <button onClick={() => setInteriorItems(p => [...p, { name: "Interior Cleaning", amount: 299 }])}
-                className="text-xs text-cyan-600 font-medium hover:text-cyan-700 flex items-center gap-1"><Plus className="w-3 h-3" />Add</button>
+          {/* Loading Customer Details */}
+          {loadingDetails && (
+            <div className="py-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-cyan-600" />
+              <span>Fetching customer billing data…</span>
             </div>
-            {interiorItems.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 mb-2">
-                <input type="number" value={item.amount} onChange={e => { const n = [...interiorItems]; n[i].amount = e.target.value; setInteriorItems(n); }}
-                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm" placeholder="₹299" />
-                <button onClick={() => setInteriorItems(p => p.filter((_, j) => j !== i))} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-red-400" /></button>
-              </div>
-            ))}
-          </div>
+          )}
 
-          {/* Other Items */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-slate-700">Other Charges</label>
-              <button onClick={() => setOtherItems(p => [...p, { name: "", amount: "" }])}
-                className="text-xs text-cyan-600 font-medium hover:text-cyan-700 flex items-center gap-1"><Plus className="w-3 h-3" />Add</button>
+          {/* 2. Bill Summary & Optional Washer Charges */}
+          {(!loadingDetails && (selectedCustomer || isEdit)) && (
+            <div className="space-y-4">
+              
+              {/* Optional Washer Charges Field */}
+              <div>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 block">
+                  Washer Charges (₹) <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={washerCharges}
+                  onChange={e => setWasherCharges(e.target.value)}
+                  placeholder="e.g. 200"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Bill Note */}
+              <div>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 block">
+                  Bill Note <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                </label>
+                <textarea
+                  value={billNote}
+                  onChange={e => setBillNote(e.target.value)}
+                  rows={2}
+                  placeholder="Any note for customer..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* 3. Bill Summary Box */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1.5">
+                  Bill Summary
+                </p>
+
+                <div className="flex justify-between items-center text-xs text-slate-600">
+                  <span>Vehicle Plans Total</span>
+                  <span className="font-semibold text-slate-900">₹{plansTotal.toLocaleString("en-IN")}</span>
+                </div>
+
+                <div className="flex justify-between items-center text-xs text-slate-600">
+                  <span>Add-On Services Total</span>
+                  <span className="font-semibold text-purple-700">₹{addonTotal.toLocaleString("en-IN")}</span>
+                </div>
+
+                {washerAmount > 0 && (
+                  <div className="flex justify-between items-center text-xs text-blue-600">
+                    <span>Washer Charges</span>
+                    <span className="font-semibold">+₹{washerAmount.toLocaleString("en-IN")}</span>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+                  <span className="text-sm font-bold text-slate-900">Final Bill Amount</span>
+                  <span className="text-lg font-bold text-blue-700">
+                    ₹{finalBillAmount.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+
             </div>
-            {otherItems.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 mb-2">
-                <input value={item.name} onChange={e => { const n = [...otherItems]; n[i].name = e.target.value; setOtherItems(n); }}
-                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm" placeholder="Service name" />
-                <input type="number" value={item.amount} onChange={e => { const n = [...otherItems]; n[i].amount = e.target.value; setOtherItems(n); }}
-                  className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm" placeholder="₹" />
-                <button onClick={() => setOtherItems(p => p.filter((_, j) => j !== i))} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-red-400" /></button>
-              </div>
-            ))}
-          </div>
+          )}
+        </div>
 
-          {/* Note */}
-          <div className="mb-4">
-            <label className="text-sm font-medium text-slate-700 mb-1.5 block">Bill Note (optional)</label>
-            <textarea value={billNote} onChange={e => setBillNote(e.target.value)} rows={2} placeholder="Any note for the customer..."
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none" />
-          </div>
-
-          {/* Grand Total */}
-          <div className="bg-slate-50 rounded-xl p-4 mb-5 flex items-center justify-between">
-            <span className="font-semibold text-slate-700">Grand Total</span>
-            <span className="text-2xl font-bold text-slate-900">₹{grandTotal}</span>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium hover:bg-slate-50">Cancel</button>
-            <button onClick={handleSubmit} disabled={sending}
-              className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2">
-              {sending && <Loader2 className="w-4 h-4 animate-spin" />}
-              {sending ? "Sending..." : isEdit ? "Save Changes" : "📤 Send Bill"}
-            </button>
-          </div>
+        {/* Footer Actions */}
+        <div className="p-4 sm:p-6 pt-3 border-t border-slate-100 flex gap-3 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={sending || (!isEdit && (!selectedCustomer || loadingDetails))}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 transition shadow-md hover:opacity-95"
+          >
+            {sending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {sending ? "Sending..." : isEdit ? "Save Changes" : "📤 Send Bill"}
+          </button>
         </div>
       </div>
     </div>

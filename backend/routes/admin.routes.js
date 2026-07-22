@@ -63,11 +63,35 @@ import {
   saveAllSettings,
 } from "../controllers/adminSettings.controller.js";
 
+import {
+  getAddonServices,
+  createAddonService,
+  updateAddonService,
+  deleteAddonService,
+} from "../controllers/adminAddonServices.controller.js";
+
+import {
+  getAdminComplaints,
+  getAdminComplaintStats,
+  getUnreadComplaintsCount,
+  getAdminComplaintDetails,
+  replyAdminComplaint,
+  updateComplaintStatus,
+} from "../controllers/adminComplaints.controller.js";
+
 const router = express.Router();
 const admin = [protect, authorizeRoles("admin")];
 
 // Stats
 router.get("/stats", ...admin, getAdminStats);
+
+// Complaints
+router.get("/complaints", ...admin, getAdminComplaints);
+router.get("/complaints/stats", ...admin, getAdminComplaintStats);
+router.get("/complaints/unread-count", ...admin, getUnreadComplaintsCount);
+router.get("/complaints/:id", ...admin, getAdminComplaintDetails);
+router.post("/complaints/:id/reply", ...admin, replyAdminComplaint);
+router.patch("/complaints/:id/status", ...admin, updateComplaintStatus);
 
 // Users
 router.get("/users", ...admin, getUsers);
@@ -90,6 +114,12 @@ router.patch("/wash-records/:id", ...admin, updateWashRecord);
 router.delete("/wash-records/:id", ...admin, deleteWashRecord);
 router.patch("/subscriptions/:id", ...admin, updateSubscription);
 router.delete("/subscriptions/:id", ...admin, deleteSubscription);
+
+// Addon Services
+router.get("/customers/:customerId/addon-services", ...admin, getAddonServices);
+router.post("/customers/:customerId/addon-services", ...admin, createAddonService);
+router.patch("/addon-services/:id", ...admin, updateAddonService);
+router.delete("/addon-services/:id", ...admin, deleteAddonService);
 
 // Subscriptions
 router.get("/subscriptions", ...admin, getAllSubscriptions);

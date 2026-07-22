@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import {
   LayoutDashboard, Calendar, Car, CreditCard,
-  Settings, LogOut, X,
+  MessageSquareWarning, Settings, LogOut, X,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -10,6 +10,7 @@ const menuItems = [
   { icon: Calendar, label: "Wash History", path: "/dashboard/wash-history" },
   { icon: Car, label: "My Vehicles", path: "/dashboard/my-vehicles" },
   { icon: CreditCard, label: "Billing", path: "/dashboard/billing" },
+  { icon: MessageSquareWarning, label: "Complaints", path: "/dashboard/complaints" },
   { icon: Settings, label: "Settings", path: "/dashboard/settings" },
 ];
 

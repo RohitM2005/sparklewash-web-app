@@ -154,7 +154,66 @@ const setupDatabase = async () => {
       ) ENGINE=InnoDB
     `);
     console.log("✅ Billing items table ready");
-    console.log("✅ All 9 tables created and ready");
+
+    // 10. Addon Services table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS addon_services (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_id INT NOT NULL,
+        vehicle_id INT,
+        service_type VARCHAR(100) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+        service_date DATE,
+        scheduled_date DATE,
+        status ENUM('scheduled','upcoming','pending_payment','paid','cancelled','completed') DEFAULT 'scheduled',
+        notes TEXT,
+        created_by INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL
+      ) ENGINE=InnoDB
+    `);
+    console.log("✅ Addon services table ready");
+
+    // 11. Complaints table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS complaints (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        complaint_code VARCHAR(20) UNIQUE NOT NULL,
+        user_id INT NOT NULL,
+        vehicle_id INT DEFAULT NULL,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        category ENUM('Service Quality', 'Washer Issue', 'Billing', 'Vehicle Damage', 'Late Service', 'Other') NOT NULL,
+        priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
+        status ENUM('Open', 'In Progress', 'Resolved', 'Closed') DEFAULT 'Open',
+        last_reply_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        admin_read BOOLEAN DEFAULT FALSE,
+        customer_read BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL
+      ) ENGINE=InnoDB
+    `);
+    console.log("✅ Complaints table ready");
+
+    // 12. Complaint messages table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS complaint_messages (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        complaint_id INT NOT NULL,
+        sender_id INT NOT NULL,
+        sender_role ENUM('customer', 'admin') NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (complaint_id) REFERENCES complaints(id) ON DELETE CASCADE,
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB
+    `);
+    console.log("✅ Complaint messages table ready");
+    console.log("✅ All 12 tables created and ready");
 
     // Migrations — add new columns to existing tables (safe to re-run)
     const migrations = [

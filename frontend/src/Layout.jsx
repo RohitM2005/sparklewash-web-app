@@ -44,7 +44,7 @@ export default function Layout({ children }) {
     navigate(user ? "/booking" : "/login");
   };
 
-  const hideNavbarPages = ["/", "/admin/login", "/washer/login"];
+  const hideNavbarPages = ["/admin/login", "/washer/login"];
   const shouldHideNavbar =
     hideNavbarPages.includes(location.pathname) ||
     location.pathname.startsWith("/washer") ||

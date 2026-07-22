@@ -15,7 +15,7 @@ export const createSubscription = async (req, res) => {
     }
 
     // Safely handle preferred_time — must match ENUM
-    const validTimes = ["morning", "afternoon", "evening"];
+    const validTimes = ["morning", "evening"];
     const safeTime = validTimes.includes(preferred_time) ? preferred_time : "morning";
 
     // Safely handle services — store as JSON string

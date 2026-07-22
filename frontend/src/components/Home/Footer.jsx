@@ -75,6 +75,16 @@ export default function Footer() {
                   Dashboard
                 </Link>
               </li>
+              <li>
+                <Link to="/admin/login" className="hover:text-cyan-400 transition">
+                  Admin
+                </Link>
+              </li>
+              <li>
+                <Link to="/washer/login" className="hover:text-cyan-400 transition">
+                  Washer
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -130,7 +140,7 @@ export default function Footer() {
         <div className="border-t border-slate-800 pt-6 sm:pt-8">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-xs sm:text-sm">
             <p className="text-center sm:text-left">
-              © 2026 SparkleWash. All rights reserved.
+              © 2024 SparkleWash. All rights reserved.
             </p>
 
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6">

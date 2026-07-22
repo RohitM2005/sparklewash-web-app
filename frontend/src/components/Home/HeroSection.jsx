@@ -1,131 +1,243 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Play, CheckCircle2 } from "lucide-react";
+import {
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
+  Droplets,
+  CalendarCheck,
+  BadgeCheck,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 
 export default function HeroSection() {
   const { user } = useAuth();
-  const benefits = [
-    "Daily doorstep service",
-    "Scratch-Safe Cleaning",
-    "Verified Professionals",
+
+  const features = [
+    {
+      icon: Droplets,
+      title: "Daily Wash",
+      subtitle: "Subscription",
+    },
+    {
+      icon: BadgeCheck,
+      title: "Verified",
+      subtitle: "Professionals",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Safe",
+      subtitle: "Products",
+    },
+    {
+      icon: CalendarCheck,
+      title: "Easy",
+      subtitle: "Booking",
+    },
   ];
 
   return (
-    <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
-      
-      {/* Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 w-60 sm:w-72 h-60 sm:h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-10 w-72 sm:w-96 h-72 sm:h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
+    <section className="relative min-h-screen overflow-hidden">
+
+      {/* ================= Background ================= */}
+
+      <div className="absolute inset-0">
+
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+      <div
+        className="absolute inset-0 hidden lg:block"
+        style={{
+          backgroundImage: "url('/assets/hero-bg.jpg')",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
+          backgroundPosition: "10% center",
+        }}
+      >
 
-          {/* LEFT SECTION */}
+        {/* Hero Image */}
+
+        <img
+          src="/assets/hero-premium.png"
+          alt="SparkleWash"
+          className="
+              absolute
+              right-0
+              top-0
+              h-full
+              w-auto
+              max-w-none
+              "
+        />
+
+
+      </div>
+
+      <div className="relative z-20 max-w-1xl mx-auto px-8 lg:px-12">
+
+        <div className="flex items-center min-h-[900px]">
+
+          {/* ================= LEFT ================= */}
+
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            viewport={{ once: true }}
+            initial={{ opacity: 0, x: -60 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: .8 }}
+            className="w-full lg:w-[45%] pt-20 lg:pt-10"
           >
+
             {/* Badge */}
+
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              viewport={{ once: true }}
-              className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 mb-6"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: .2 }}
+              className="inline-flex items-center gap-3 rounded-full bg-white shadow-lg border border-sky-100 px-5 py-3"
             >
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              <span className="text-xs sm:text-sm text-cyan-300 font-medium">
-                Premium Car Care at Your Doorstep
+              <Sparkles className="h-5 w-5 text-sky-600" />
+
+              <span className="text-sm font-semibold text-slate-700 tracking-wide">
+                PREMIUM DOORSTEP CAR CARE
               </span>
+
             </motion.div>
 
             {/* Heading */}
-            <h1 className="text-[32px] sm:text-[42px] md:text-[52px] lg:text-[60px] font-bold text-white leading-tight mb-6">
-              Your Car Deserves a
-              <span className="block mt-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                Daily Sparkle
-              </span>
-            </h1>
 
-            {/* Subtitle */}
-            <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-8 max-w-lg">
-              Experience hassle-free car washing with our subscription service.
-              We come to you daily — reliable, professional, and convenient.
-            </p>
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: .3 }}
+            >
+
+              <p className="mt-10 uppercase tracking-[6px] text-slate-500 font-semibold">
+
+                CLEAN CAR.
+
+                <span className="text-sky-600 ml-2">
+                  HAPPY YOU.
+                </span>
+
+              </p>
+
+              <h1 className="mt-6 text-5xl md:text-5xl xl:text-7xl font-black leading-tight text-slate-900">
+
+                Daily Car Wash
+
+                <br />
+
+                <span className="bg-gradient-to-r from-sky-500 to-blue-700 bg-clip-text text-transparent">
+
+                  At Your Doorstep
+
+                </span>
+
+              </h1>
+
+            </motion.div>
+
+            {/* Description */}
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: .45 }}
+              className="mt-6 max-w-md text-base leading-8 text-slate-600"
+            >
+              Professional care, premium products, and trusted
+              experts delivering spotless results every single day.
+              Keep your vehicle shining without leaving your home.
+            </motion.p>
 
             {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-10">
-              <Link to={user ? "/booking" : "/login"} className="w-full sm:w-auto">
-                <button
-                  className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-600
-                    hover:scale-105 transition-all px-6 sm:px-8 py-3 sm:py-4
-                    text-base sm:text-lg rounded-xl shadow-lg shadow-cyan-500/25 text-white"
-                >
-                  Start Subscription
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: .6 }}
+              className="flex flex-wrap gap-5 mt-10"
+            >
+
+              <Link to={user ? "/booking" : "/login"}>
+
+                <button className="group rounded-full px-7 py-3 bg-gradient-to-r from-sky-500 to-blue-700 text-white font-semibold shadow-xl hover:scale-105 transition-all duration-300">
+
+                  <span className="flex items-center gap-3">
+
+                    Book Your Wash
+
+                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+
+                  </span>
+
                 </button>
+
               </Link>
 
-              <a href="#how-it-works" className="w-full sm:w-auto">
-                <button
-                  className="w-full sm:w-auto flex items-center justify-center border border-slate-600
-                    text-slate-300 hover:bg-slate-800 px-6 sm:px-8 py-3 sm:py-4
-                    text-base sm:text-lg rounded-xl transition group"
-                >
-                  <Play className="w-5 h-5 mr-2 group-hover:text-cyan-400" />
-                  Watch How It Works
-                </button>
-              </a>
+              <button className="rounded-full border border-slate-300 bg-white px-7 py-3 font-semibold text-slate-700 shadow-sm hover:border-sky-500 hover:text-sky-600 transition">
+
+                Explore Services
+
+              </button>
+
+            </motion.div>
+
+            {/* Features */}
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-14">
+
+              {features.map((item, index) => {
+
+                const Icon = item.icon;
+
+                return (
+
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: .8 + index * .1 }}
+                    whileHover={{ y: -8 }}
+                    className="h-[160px] rounded-2xl bg-white p-5 shadow-lg border border-slate-100 flex flex-col items-center justify-center text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-xl"
+                  >
+
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 mb-4">
+
+                      <Icon className="h-7 w-7 text-sky-600" />
+
+                    </div>
+
+                    <h3 className="mt-5 font-bold text-slate-800">
+
+                      {item.title}
+
+                    </h3>
+
+                    <p className="mt-2 text-sm text-slate-500 leading-5">
+
+                      {item.subtitle}
+
+                    </p>
+
+                  </motion.div>
+
+                );
+
+              })}
+
             </div>
 
-            {/* Benefits */}
-            <div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6">
-              {benefits.map((benefit, index) => (
-                <motion.div
-                  key={benefit}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + index * 0.1 }}
-                  viewport={{ once: true }}
-                  className="flex items-center gap-2"
-                >
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center">
-                    <CheckCircle2 className="w-3 h-3 text-white" />
-                  </div>
-                  <span className="text-slate-300 text-xs sm:text-sm">
-                    {benefit}
-                  </span>
-                </motion.div>
-              ))}
-            </div>
           </motion.div>
 
-          {/* RIGHT SECTION (Image) */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            viewport={{ once: true }}
-            className="relative hidden lg:block"
-          >
-            <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-              <img
-                src="/assets/hero-car.png"
-                alt="Professional car wash"
-                className="w-full h-[400px] xl:h-[500px] object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
-            </div>
-          </motion.div>
+          {/* ================= RIGHT ================= */}
+
+
 
         </div>
+
       </div>
+
     </section>
   );
 }

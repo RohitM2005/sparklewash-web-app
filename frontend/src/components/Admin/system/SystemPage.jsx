@@ -49,7 +49,6 @@ function PreferencesTab() {
   const toggles = [
     { key: "maintenance_mode", label: "Maintenance Mode", desc: "Disable customer access temporarily" },
     { key: "morning_slot_enabled", label: "Morning Slot (6AM–12PM)", desc: "Enable morning wash slot" },
-    { key: "afternoon_slot_enabled", label: "Afternoon Slot (12PM–4PM)", desc: "Enable afternoon wash slot" },
     { key: "evening_slot_enabled", label: "Evening Slot (4PM–8PM)", desc: "Enable evening wash slot" },
   ];
 
@@ -93,7 +92,7 @@ function PricingTab() {
     setSaving(true);
     try {
       await api.put("/admin/settings/pricing", pricing);
-      toast.success("Pricing updated successfully", toastStyle);
+      toast.success("Pricing updated successfully and applied system-wide.", toastStyle);
     } catch { toast.error("Failed to save pricing"); }
     finally { setSaving(false); }
   };

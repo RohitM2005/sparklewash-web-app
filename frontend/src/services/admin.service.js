@@ -5,12 +5,12 @@ export const getAdminStats = async () => {
   return response.data;
 };
 
-export const adminLogin = async (email, password) => {
-  const response = await api.post("/admin/auth/login", { email, password });
+export const adminLogin = async (credentials) => {
+  const response = await api.post("/admin/auth/login", credentials);
   return response.data;
 };
 
-export const washerLogin = async (email, password) => {
-  const response = await api.post("/washer/auth/login", { email, password });
+export const washerLogin = async (credentials) => {
+  const response = await api.post("/washer/auth/login", credentials);
   return response.data;
 };

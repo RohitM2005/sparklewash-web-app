@@ -80,6 +80,35 @@ export const getCustomerDetails = async (req, res) => {
       [id]
     );
 
+    // Vehicle billing — vehicles with their active subscription price
+    const [vehicle_billing] = await pool.execute(
+      `SELECT v.id, v.vehicle_number, v.vehicle_model, v.vehicle_type,
+              s.id as sub_id, s.plan_name, s.monthly_price, s.status as sub_status,
+              DATE_FORMAT(s.renewal_date, '%Y-%m-%d') as renewal_date,
+              DATE_FORMAT(s.start_date, '%Y-%m-%d') as start_date
+       FROM vehicles v
+       LEFT JOIN subscriptions s ON s.vehicle_id = v.id AND s.user_id = v.user_id AND s.status = 'active'
+       WHERE v.user_id = ?
+       ORDER BY v.created_at ASC`,
+      [id]
+    );
+
+    // Add-on services (all, ordered by scheduled_date then service_date)
+    const [addon_services] = await pool.execute(
+      `SELECT a.id, a.vehicle_id, a.service_type, a.amount,
+              DATE_FORMAT(a.service_date, '%Y-%m-%d') as service_date,
+              DATE_FORMAT(a.scheduled_date, '%Y-%m-%d') as scheduled_date,
+              a.status, a.notes, a.created_at,
+              v.vehicle_number, v.vehicle_model,
+              u.full_name as created_by_name
+       FROM addon_services a
+       LEFT JOIN vehicles v ON a.vehicle_id = v.id
+       LEFT JOIN users u ON a.created_by = u.id
+       WHERE a.user_id = ?
+       ORDER BY COALESCE(a.scheduled_date, a.service_date, a.created_at) ASC`,
+      [id]
+    );
+
     res.json({
       success: true,
       profile,
@@ -95,6 +124,8 @@ export const getCustomerDetails = async (req, res) => {
       subscriptions,
       vehicles,
       recent_wash_records,
+      vehicle_billing,
+      addon_services,
     });
   } catch (error) {
     console.error("Get customer details error:", error);

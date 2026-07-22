@@ -1,21 +1,33 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Car, User, MapPin, Calendar, CreditCard, Check, Loader2, Clock, Shield } from "lucide-react";
 import { format, addMonths } from "date-fns";
+import { fetchPublicSettings, getSystemPricingMap, DEFAULT_PRICING } from "../../services/systemSettingsService";
 
 const VEHICLE_TYPES = { micro: "Micro", sedan: "Sedan", mini_suv: "Mini SUV", suv: "SUV", hatchback: "Hatchback", luxury: "Luxury" };
-const TIME_SLOTS = { morning: "Morning · 6AM–9AM", afternoon: "Afternoon · 12PM–3PM", evening: "Evening · 5PM–8PM" };
+const TIME_SLOTS = { morning: "Morning · 6AM–9AM", evening: "Evening · 5PM–8PM" };
 
 export default function ReviewSubmit({ formData, onSubmit, isSubmitting }) {
+  const [pricingMap, setPricingMap] = useState(DEFAULT_PRICING);
+
+  useEffect(() => {
+    fetchPublicSettings().then((data) => {
+      if (data && data.pricing) {
+        setPricingMap(getSystemPricingMap(data.pricing));
+      }
+    });
+  }, []);
+
   const startDate = formData?.preferred_date ? new Date(formData.preferred_date) : new Date();
   const endDate = addMonths(startDate, 1);
   const safeFormat = (d, f) => { try { return format(d, f); } catch { return "-"; } };
   const selectedServices = formData?.selected_services || {};
   const vehicleType = formData?.vehicle_type || "sedan";
-  const vehiclePrices = { micro: 999, sedan: 1199, mini_suv: 1199, suv: 1399 };
-  const basePrice = selectedServices.dailyWash ? (vehiclePrices[vehicleType] || 1199) : 0;
-  const interiorAddon = selectedServices.interiorCleaning ? 300 : 0;
+  const vehiclePricing = pricingMap[vehicleType] || pricingMap.sedan || DEFAULT_PRICING.sedan;
+
+  const basePrice = selectedServices.dailyWash ? vehiclePricing.dailyWash : 0;
+  const interiorAddon = selectedServices.interiorCleaning ? vehiclePricing.interiorCleaning : 0;
   const monthlyTotal = formData?.monthly_price || (basePrice + interiorAddon);
 
   const hasServices = selectedServices.dailyWash || selectedServices.interiorCleaning;
@@ -68,7 +80,7 @@ export default function ReviewSubmit({ formData, onSubmit, isSubmitting }) {
           {selectedServices.interiorCleaning && (
             <div className="flex justify-between text-xs sm:text-sm text-slate-600">
               <span>Interior Cleaning</span>
-              <span className="font-medium">₹300/visit</span>
+              <span className="font-medium">₹{interiorAddon}/visit</span>
             </div>
           )}
           <div className="flex justify-between text-[10px] sm:text-xs text-slate-400">
