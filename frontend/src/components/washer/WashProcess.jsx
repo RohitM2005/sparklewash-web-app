@@ -80,10 +80,18 @@ export default function WashProcess() {
 
   if (showConfetti) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <div className="text-6xl animate-bounce">🎉</div>
-        <h2 className="text-2xl font-bold text-green-600">Wash Completed!</h2>
-        <p className="text-slate-500">Redirecting back...</p>
+      <div className="flex flex-col items-center justify-center py-16 px-4 space-y-4 max-w-md mx-auto text-center">
+        <div className="w-20 h-20 rounded-full bg-green-100 border-4 border-green-300 flex items-center justify-center text-4xl animate-bounce shadow-md">
+          🎉
+        </div>
+        <h2 className="text-2xl font-extrabold text-slate-900">Wash Completed!</h2>
+        <p className="text-sm text-slate-600 font-medium leading-relaxed">
+          Wash record marked completed automatically. Customer wash calendar & history updated.
+        </p>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-bold border border-green-200">
+          ✓ Verified & Logged
+        </div>
+        <p className="text-xs text-slate-400 pt-2">Redirecting to today's vehicles...</p>
       </div>
     );
   }

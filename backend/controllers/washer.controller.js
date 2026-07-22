@@ -130,6 +130,7 @@ export const completeWash = async (req, res) => {
 
     const [result] = await pool.execute(
       `UPDATE wash_records SET status = 'completed', washed_at = NOW(),
+        verified = 1, verified_at = NOW(),
         washer_note = ?, wash_duration_minutes = ?
        WHERE id = ? AND washer_id = ?`,
       [washer_note || null, duration, recordId, washerId]
