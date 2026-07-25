@@ -92,6 +92,10 @@ jobs:
             npm install
             npm run build
             
+            echo "🌐 Syncing Frontend with Nginx & Reloading..."
+            sudo cp -r dist/* /var/www/html/ 2>/dev/null || true
+            sudo systemctl reload nginx 2>/dev/null || true
+            
             echo "🔄 Restarting Backend Application..."
             cd ../backend
             pm2 restart all || pm2 start server.js --name "sparklewash-backend"
