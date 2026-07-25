@@ -94,8 +94,18 @@ jobs:
             npm run build
             
             echo "🌐 Syncing Frontend with Nginx & Reloading..."
+            NGINX_ROOT=$(grep -rh "root " /etc/nginx/ 2>/dev/null | grep -v "#" | grep "/" | head -n 1 | awk '{print $2}' | tr -d ';')
+            echo "Detected Nginx root: $NGINX_ROOT"
+            
+            if [ -n "$NGINX_ROOT" ] && [ -d "$NGINX_ROOT" ]; then
+              sudo cp -r dist/* "$NGINX_ROOT/" 2>/dev/null || true
+            fi
+            
             sudo cp -r dist/* /var/www/html/ 2>/dev/null || true
-            sudo systemctl reload nginx 2>/dev/null || true
+            sudo cp -r dist/* /var/www/sparklewash/ 2>/dev/null || true
+            sudo cp -r dist/* ../dist/ 2>/dev/null || true
+            
+            sudo systemctl reload nginx 2>/dev/null || sudo service nginx reload 2>/dev/null || true
             
             echo "🔄 Restarting Backend Application..."
             cd ../backend
