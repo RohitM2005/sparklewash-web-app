@@ -66,19 +66,34 @@ jobs:
           retention-days: 7
 
   deploy:
-    name: Deployment Verification
+    name: Automated Deployment to AWS EC2
     needs: [backend-ci, frontend-ci]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Frontend Artifacts
-        uses: actions/download-artifact@v4
+      - name: SSH & Deploy to AWS Server
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          name: frontend-dist
-          path: dist-verify
-
-      - name: Verify Dist Artifact
-        run: |
-          echo "✅ Production artifacts successfully verified and ready for deployment!"
-          ls -la dist-verify
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ${{ secrets.AWS_EC2_USERNAME }}
+          key: ${{ secrets.AWS_EC2_SSH_KEY }}
+          script: |
+            echo "🚀 Starting automated deployment on AWS EC2 server..."
+            cd ${{ secrets.AWS_EC2_PATH }}
+            git pull origin main
+            
+            echo "📦 Updating Backend..."
+            cd backend
+            npm install --production
+            
+            echo "🎨 Updating Frontend..."
+            cd ../frontend
+            npm install
+            npm run build
+            
+            echo "🔄 Restarting Backend Application..."
+            cd ../backend
+            pm2 restart all || pm2 start server.js --name "sparklewash-backend"
+            
+            echo "✅ Deployment completed successfully on sparklewash.in!"
