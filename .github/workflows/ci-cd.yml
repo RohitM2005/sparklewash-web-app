@@ -80,8 +80,17 @@ jobs:
           key: ${{ secrets.AWS_EC2_SSH_KEY }}
           script: |
             echo "🚀 Starting automated deployment on AWS EC2 server..."
-            cd ${{ secrets.AWS_EC2_PATH }}
+            cd ${{ secrets.AWS_EC2_PATH }} || mkdir -p ${{ secrets.AWS_EC2_PATH }} && cd ${{ secrets.AWS_EC2_PATH }}
+            
+            if [ ! -d ".git" ]; then
+              echo "⚠️ No git repository found on server! Converting directory to Git repository..."
+              git init
+              git remote add origin https://github.com/tech-aj99/sparklewash---smartwash-management-system.git || git remote set-url origin https://github.com/tech-aj99/sparklewash---smartwash-management-system.git
+            fi
+            
+            echo "📥 Syncing latest code from GitHub..."
             git fetch origin main
+            git checkout -B main origin/main
             git reset --hard origin/main
             
             echo "📦 Updating Backend..."
