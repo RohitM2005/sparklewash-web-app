@@ -81,7 +81,8 @@ jobs:
           script: |
             echo "🚀 Starting automated deployment on AWS EC2 server..."
             cd ${{ secrets.AWS_EC2_PATH }}
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             
             echo "📦 Updating Backend..."
             cd backend
