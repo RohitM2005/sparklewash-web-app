@@ -1,10 +1,18 @@
-// controllers/subscription.controller.js
 import pool from "../config/db.js";
+import { syncUserData } from "../utils/syncCustomerData.js";
 
 export const createSubscription = async (req, res) => {
   try {
-    const { vehicle_id, plan_name, monthly_price, preferred_time, services } = req.body;
+    const { vehicle_id, plan_name, monthly_price, preferred_time, services, phone, address, customer_phone, full_name, customer_name } = req.body;
     const user_id = req.user.id;
+
+    // Sync any customer phone or address details
+    await syncUserData(user_id, {
+      name: full_name || customer_name,
+      full_name: full_name || customer_name,
+      phone: phone || customer_phone,
+      address: address,
+    });
 
     // Validate required fields
     if (!vehicle_id) {

@@ -6,8 +6,6 @@ import {
   updateProfile,
   getNotificationPreferences,
   updateNotificationPreferences,
-  changePassword,
-  deleteAccount,
 } from "../controllers/customerSettings.controller.js";
 import {
   getCustomerVehicles,
@@ -25,12 +23,6 @@ router.patch("/profile", protect, updateProfile);
 // Notification Preferences
 router.get("/notification-preferences", protect, getNotificationPreferences);
 router.patch("/notification-preferences", protect, updateNotificationPreferences);
-
-// Password
-router.patch("/change-password", protect, changePassword);
-
-// Delete Account
-router.delete("/account", protect, deleteAccount);
 
 // Vehicles
 router.get("/vehicles", protect, getCustomerVehicles);

@@ -561,6 +561,7 @@ function CustomerDetail({ customerId, onClose, onRefresh }) {
             <div className="min-w-0">
               <h2 className="text-xl font-bold text-slate-900 truncate">{p.full_name || p.name}</h2>
               <p className="text-sm text-slate-500 truncate">{p.email}</p>
+              {p.address && <p className="text-sm text-slate-400 truncate mt-0.5">📍 {p.address}</p>}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <StatusBadge status={p.status} />
                 {p.phone && <span className="text-xs text-slate-400">📞 +91 {p.phone}</span>}

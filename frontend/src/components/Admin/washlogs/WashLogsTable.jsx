@@ -30,6 +30,17 @@ function StatusBadge({ status }) {
   );
 }
 
+const formatIssueType = (type) => {
+  const map = {
+    car_not_available: "Car Not Available",
+    parking_locked: "Parking Locked",
+    rain: "Rain Issue",
+    customer_complaint: "Customer Issue",
+    other: "Other Issue",
+  };
+  return map[type] || (type ? type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "");
+};
+
 export default function WashLogsTable() {
   const navigate = useNavigate();
   const [records, setRecords] = useState([]);
@@ -119,8 +130,21 @@ export default function WashLogsTable() {
                 <td className="px-5 py-3 text-slate-600">{r.washer_name || "—"}</td>
                 <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
                 <td className="px-5 py-3 text-slate-600">{r.wash_duration_minutes ? `${r.wash_duration_minutes} min` : "—"}</td>
-                <td className="px-5 py-3 text-slate-500 text-xs max-w-[200px] truncate">
-                  {r.washer_note || r.issue_note || "—"}
+                <td className="px-5 py-3 text-slate-600 text-xs max-w-[220px]">
+                  {r.issue_type ? (
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-red-600">
+                        {formatIssueType(r.issue_type)}
+                      </span>
+                      {(r.issue_note || r.washer_note) && (
+                        <span className="text-slate-500 text-[11px] truncate">
+                          {r.issue_note || r.washer_note}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    r.washer_note || r.issue_note || "—"
+                  )}
                 </td>
                 <td className="px-5 py-3 text-slate-600 text-xs font-medium">
                   {r.washed_at ? new Date(r.washed_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—"}

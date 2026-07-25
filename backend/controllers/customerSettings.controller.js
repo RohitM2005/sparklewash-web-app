@@ -2,7 +2,6 @@
 // Customer-facing settings: profile, notifications, password, account deletion.
 
 import pool from "../config/db.js";
-import { hashPassword, comparePassword } from "../utils/hash.js";
 
 /* ─── Profile ─── */
 
@@ -34,29 +33,37 @@ export const updateProfile = async (req, res) => {
     const userId = req.user.id;
 
     // Validation
-    if (!full_name || !full_name.trim()) {
+    const nameToSave = (full_name || "").trim();
+    if (!nameToSave) {
       return res.status(400).json({ success: false, message: "Name is required" });
     }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+
+    const emailToSave = (email || "").trim();
+    if (!emailToSave || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToSave)) {
       return res.status(400).json({ success: false, message: "Valid email is required" });
     }
-    if (phone && !/^[6-9]\d{9}$/.test(phone.replace(/^(\+91|91)/, "").replace(/[\s\-]/g, ""))) {
-      return res.status(400).json({ success: false, message: "Valid Indian phone number is required" });
+
+    const rawPhone = (phone || "").trim();
+    const cleanPhone = rawPhone.replace(/^(\+91|91)/, "").replace(/[\s\-]/g, "");
+    if (rawPhone && !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return res.status(400).json({ success: false, message: "Valid 10-digit Indian phone number is required" });
     }
 
-    // Use exact column names from users table
-    const query = `
-      UPDATE users
-      SET
-        full_name = ?,
-        name = ?,
-        phone = ?,
-        email = ?,
-        address = ?,
-        updated_at = NOW()
-      WHERE id = ?
-    `;
-    const values = [full_name.trim(), full_name.trim(), phone || null, email, address || null, userId];
+    const fields = ["full_name = ?", "name = ?", "email = ?"];
+    const values = [nameToSave, nameToSave, emailToSave];
+
+    if (phone !== undefined) {
+      fields.push("phone = ?");
+      values.push(cleanPhone || rawPhone || null);
+    }
+
+    if (address !== undefined) {
+      fields.push("address = ?");
+      values.push(address ? address.trim() : null);
+    }
+
+    values.push(userId);
+    const query = `UPDATE users SET ${fields.join(", ")} WHERE id = ?`;
 
     console.log("Running query with values:", values);
 
@@ -70,13 +77,13 @@ export const updateProfile = async (req, res) => {
 
     // Verify it saved — fetch updated record
     const [[updated]] = await pool.execute(
-      "SELECT id, name, full_name, email, phone, address, updated_at FROM users WHERE id = ?",
+      "SELECT id, name, full_name, email, phone, address FROM users WHERE id = ?",
       [userId]
     );
 
     console.log("✅ Updated user record:", updated);
 
-    res.json({ success: true, message: "Profile updated successfully", data: updated });
+    res.json({ success: true, message: "Profile updated successfully", data: updated, profile: updated });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(400).json({ success: false, message: "Email already exists" });
@@ -133,57 +140,5 @@ export const updateNotificationPreferences = async (req, res) => {
   } catch (error) {
     console.error("Update notification prefs error:", error);
     res.status(500).json({ message: "Failed to save preferences", error: error.message });
-  }
-};
-
-/* ─── Change Password ─── */
-
-export const changePassword = async (req, res) => {
-  try {
-    const { current_password, new_password } = req.body;
-
-    if (!current_password || !new_password) {
-      return res.status(400).json({ success: false, message: "Current and new passwords are required" });
-    }
-    if (new_password.length < 8) {
-      return res.status(400).json({ success: false, message: "New password must be at least 8 characters" });
-    }
-
-    const [rows] = await pool.execute("SELECT password FROM users WHERE id = ?", [req.user.id]);
-    if (!rows.length) return res.status(404).json({ success: false, message: "User not found" });
-
-    const match = await comparePassword(current_password, rows[0].password);
-    if (!match) {
-      return res.status(401).json({ success: false, message: "Current password is incorrect" });
-    }
-
-    const hashed = await hashPassword(new_password);
-    await pool.execute("UPDATE users SET password = ? WHERE id = ?", [hashed, req.user.id]);
-
-    res.json({ success: true, message: "Password updated" });
-  } catch (error) {
-    console.error("Change password error:", error);
-    res.status(500).json({ message: "Password change failed", error: error.message });
-  }
-};
-
-/* ─── Delete Account (cascade) ─── */
-
-export const deleteAccount = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // Cascade delete in correct FK order
-    await pool.execute("DELETE FROM wash_records WHERE user_id = ?", [userId]);
-    await pool.execute("DELETE FROM payments WHERE user_id = ?", [userId]);
-    await pool.execute("DELETE FROM subscriptions WHERE user_id = ?", [userId]);
-    await pool.execute("DELETE FROM vehicles WHERE user_id = ?", [userId]);
-    await pool.execute("DELETE FROM notification_preferences WHERE user_id = ?", [userId]);
-    await pool.execute("DELETE FROM users WHERE id = ?", [userId]);
-
-    res.json({ success: true, message: "Account deleted" });
-  } catch (error) {
-    console.error("Delete account error:", error);
-    res.status(500).json({ message: "Failed to delete account", error: error.message });
   }
 };

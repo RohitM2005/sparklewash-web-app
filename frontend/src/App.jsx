@@ -47,11 +47,8 @@ import SystemPage from "./components/Admin/system/SystemPage";
 
 /* ================= WASHER SUB-PAGES ================= */
 import WasherLayout from "./components/washer/WasherLayout";
-import WasherDashboardHome from "./components/washer/WasherDashboard";
 import TodayVehiclesList from "./components/washer/TodayVehiclesList";
 import WashProcess from "./components/washer/WashProcess";
-import CompletedList from "./components/washer/CompletedList";
-import WasherProfile from "./components/washer/WasherProfile";
 
 /* ================= ROUTE PROTECTION ================= */
 import ProtectedRoute from "./utils/protectedRoute";

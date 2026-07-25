@@ -62,10 +62,10 @@ export default function FeaturesSection() {
 
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          viewport={{ once: true }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          viewport={{ once: true, margin: "0px 0px -50px 0px" }}
           className="text-center mb-12 sm:mb-16"
         >
           <span className="inline-block px-3 sm:px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 text-xs sm:text-sm font-medium mb-4">
@@ -94,10 +94,10 @@ export default function FeaturesSection() {
             return (
               <motion.div
                 key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.07, duration: 0.4 }}
-                viewport={{ once: true }}
+                transition={{ delay: index * 0.05, duration: 0.4, ease: "easeOut" }}
+                viewport={{ once: true, margin: "0px 0px -40px 0px" }}
                 className="group"
               >
                 <div className="h-full bg-white rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-slate-200 hover:-translate-y-1">

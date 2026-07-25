@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import emailjs from 'emailjs-com';
+import emailjs from '@emailjs/browser';
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -59,16 +59,15 @@ const ForgotPassword = () => {
 
     setLoading(true);
 
-    const rawServiceId = (import.meta.env.VITE_EMAILJS_SERVICE_ID || '').trim();
-    const rawTemplateId = (import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '').trim();
-    const rawPublicKey = (import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '').trim();
+    const serviceId = (import.meta.env.VITE_EMAILJS_SERVICE_ID || '').trim();
+    const templateId = (import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '').trim();
+    const publicKey = (import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '').trim();
 
-    // Fallback to the real credentials if Vite has cached placeholders
-    const serviceId = (!rawServiceId || rawServiceId === 'service_xxxxxx') ? 'service_l8vetyo' : rawServiceId;
-    const templateId = (!rawTemplateId || rawTemplateId === 'template_xxxxxx') ? 'template_h6y5d64' : rawTemplateId;
-    const publicKey = (!rawPublicKey || rawPublicKey === 'your_public_key') ? 'HMzamMEnOv9MpIe9f' : rawPublicKey;
-
-    console.log('Sanitized EmailJS Config:', { serviceId, templateId, publicKey });
+    if (!serviceId || !templateId || !publicKey) {
+      setError('Email service is not configured. Please contact support.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const code = generateOTP();
@@ -155,13 +154,15 @@ const ForgotPassword = () => {
     setMessage('');
     setLoading(true);
 
-    const rawServiceId = (import.meta.env.VITE_EMAILJS_SERVICE_ID || '').trim();
-    const rawTemplateId = (import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '').trim();
-    const rawPublicKey = (import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '').trim();
+    const serviceId = (import.meta.env.VITE_EMAILJS_SERVICE_ID || '').trim();
+    const templateId = (import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '').trim();
+    const publicKey = (import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '').trim();
 
-    const serviceId = (!rawServiceId || rawServiceId === 'service_xxxxxx') ? 'service_l8vetyo' : rawServiceId;
-    const templateId = (!rawTemplateId || rawTemplateId === 'template_xxxxxx') ? 'template_h6y5d64' : rawTemplateId;
-    const publicKey = (!rawPublicKey || rawPublicKey === 'your_public_key') ? 'HMzamMEnOv9MpIe9f' : rawPublicKey;
+    if (!serviceId || !templateId || !publicKey) {
+      setError('Email service is not configured. Please contact support.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const code = generateOTP();

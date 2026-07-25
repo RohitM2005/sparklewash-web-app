@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 import authRoutes from "./routes/auth.routes.js";
 import adminAuthRoutes from "./routes/admin.auth.routes.js";
@@ -18,8 +20,24 @@ import customerSettingsRoutes from "./routes/customerSettings.routes.js";
 import customerComplaintsRoutes from "./routes/customerComplaints.routes.js";
 import publicSettingsRoutes from "./routes/publicSettings.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
+import { backfillCustomerData } from "./utils/syncCustomerData.js";
 
 const app = express();
+
+// Security headers
+app.use(helmet());
+
+// Rate limiting — sensitive endpoints: max 100 requests per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, message: "Too many requests. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Automatically backfill any missing customer address/phone from existing records on start
+backfillCustomerData();
 
 app.use(cors({
   origin: [
@@ -34,7 +52,13 @@ app.use(cors({
   ].filter(Boolean),
   credentials: true,
 }));
-app.use(express.json());
+// Use express.json with verify callback to capture raw body for webhook signature verification
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
 
 
 
@@ -46,10 +70,13 @@ app.get("/", (req, res) => {
   res.json({ message: "SparkleWash Backend Running" });
 });
 
-// Auth
+// Auth — rate limiter only on login/register/reset, NOT on /me or /profile
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/reset-password", authLimiter);
 app.use("/api/auth", authRoutes);
-app.use("/api/admin/auth", adminAuthRoutes);
-app.use("/api/washer/auth", washerAuthRoutes);
+app.use("/api/admin/auth", authLimiter, adminAuthRoutes);
+app.use("/api/washer/auth", authLimiter, washerAuthRoutes);
 
 // Customer
 app.use("/api/vehicles", vehicleRoutes);

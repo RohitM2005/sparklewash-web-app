@@ -37,8 +37,11 @@ const toSafeUser = (user) => {
 
   return {
     id: user.id,
-    name: user.name,
-    email: user.email,
+    name: user.name || user.full_name || "",
+    full_name: user.full_name || user.name || "",
+    email: user.email || "",
+    phone: user.phone || "",
+    address: user.address || "",
     role: primaryRole,
     roles,
   };
@@ -147,17 +150,33 @@ export const me = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { full_name, name, email, phone, address } = req.body;
+    const nameToSave = (full_name || name || "").trim();
+    const emailToSave = (email || "").trim();
+    const rawPhone = (phone || "").trim();
+    const cleanPhone = rawPhone.replace(/^(\+91|91)/, "").replace(/[\s\-]/g, "");
 
-    if (!name || !email) {
+    if (!nameToSave || !emailToSave) {
       return res
         .status(400)
         .json({ success: false, message: "Name and email are required" });
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToSave)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid email is required" });
+    }
+
+    if (rawPhone && !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid 10-digit Indian phone number is required" });
+    }
+
     const [result] = await pool.execute(
-      "UPDATE users SET name = ?, email = ? WHERE id = ?",
-      [name, email, req.user.id]
+      "UPDATE users SET name = ?, full_name = ?, email = ?, phone = ?, address = ? WHERE id = ?",
+      [nameToSave, nameToSave, emailToSave, cleanPhone || rawPhone || null, address ? address.trim() : null, req.user.id]
     );
 
     if (result.affectedRows === 0) {
@@ -170,7 +189,8 @@ export const updateProfile = async (req, res) => {
     res.json({
       success: true,
       message: "Profile updated successfully",
-      data: safeUser
+      data: safeUser,
+      user: safeUser
     });
   } catch (err) {
     console.error("Update profile error:", err);
@@ -185,12 +205,19 @@ export const updateProfile = async (req, res) => {
 
 export const changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const currentPassword = req.body.currentPassword || req.body.current_password;
+    const newPassword = req.body.newPassword || req.body.new_password;
 
     if (!currentPassword || !newPassword) {
       return res
         .status(400)
         .json({ success: false, message: "Current password and new password are required" });
+    }
+
+    if (newPassword.length < 8) {
+      return res
+        .status(400)
+        .json({ success: false, message: "New password must be at least 8 characters" });
     }
 
     // Query password directly — getUserById doesn't return it

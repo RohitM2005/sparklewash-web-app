@@ -21,6 +21,11 @@ import {
 } from "../controllers/admin.controller.js";
 
 import {
+  createAndSendBill,
+  editBill,
+} from "../controllers/billing.controller.js";
+
+import {
   getAllSubscriptions,
   assignWasher,
   getActiveWashers,
@@ -129,6 +134,7 @@ router.get("/subscriptions/washers", ...admin, getActiveWashers);
 
 // Payments
 router.get("/payments", ...admin, getAllPayments);
+router.patch("/payments/:id", ...admin, editBill);
 router.delete("/payments/:id", ...admin, deletePayment);
 
 // Washers

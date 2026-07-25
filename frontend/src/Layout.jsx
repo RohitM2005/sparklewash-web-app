@@ -69,17 +69,17 @@ export default function Layout({ children }) {
             transition: "box-shadow 0.3s ease",
           }}
         >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between">
             {/* LOGO */}
-            <Link to={user ? "/home" : "/"} className="flex items-center gap-3 group">
+            <Link to={user ? "/home" : "/"} className="flex items-center gap-2.5 sm:gap-3 group">
               <img
                 src="/logo.jpg"
                 alt="SparkleWash"
-                className="h-10 w-auto group-hover:scale-105 transition-transform duration-200"
+                className="h-8 sm:h-10 w-auto group-hover:scale-105 transition-transform duration-200"
                 style={{ borderRadius: "8px" }}
               />
               <span
-                className="text-lg sm:text-xl font-bold hidden sm:block"
+                className="text-base sm:text-xl font-bold"
                 style={{
                   background: "linear-gradient(135deg, #00d4ff, #0066ff)",
                   WebkitBackgroundClip: "text",
@@ -178,18 +178,18 @@ export default function Layout({ children }) {
               )}
             </nav>
 
-            {/* MOBILE BUTTON */}
-            <div className="md:hidden flex items-center gap-3">
+            {/* MOBILE BUTTON & PROFILE */}
+            <div className="md:hidden flex items-center gap-2 sm:gap-3">
               {user && (
                 <ProfileDropdown email={user.email} onLogout={handleLogout} />
               )}
               <button
                 ref={hamburgerRef}
-                className="text-white/70 hover:text-cyan-400 transition-colors focus:outline-none p-1"
+                className="text-white/80 hover:text-cyan-400 p-1.5 rounded-lg hover:bg-white/5 transition-colors focus:outline-none flex items-center justify-center"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label="Toggle menu"
               >
-                {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+                {mobileOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
             </div>
           </div>
@@ -265,7 +265,7 @@ export default function Layout({ children }) {
         </header>
       )}
 
-      <main className={`flex-1 ${!shouldHideNavbar ? "pt-[64px]" : ""}`}>
+      <main className={`flex-1 ${!shouldHideNavbar ? "pt-[52px] sm:pt-[64px]" : ""}`}>
         {children || <Outlet />}
       </main>
 

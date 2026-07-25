@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, User, CreditCard, TrendingUp, Clock, Download, Plus, X, Pencil, Loader2, Trash2 } from "lucide-react";
+import { Search, User, CreditCard, TrendingUp, Clock, Download, Plus, X, Pencil, Loader2, Trash2, Receipt } from "lucide-react";
 import api from "../../../services/api";
 import toast, { Toaster } from "react-hot-toast";
+import InvoiceModal from "../../Billing/InvoiceModal";
 
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
 const ts = { style: { background: "#1e293b", color: "#fff" } };
@@ -349,12 +350,187 @@ function BillModal({ mode, editData, onClose, onSuccess }) {
   );
 }
 
+/* ═══ Edit Payment Modal ═══ */
+function EditPaymentModal({ payment, onClose, onSuccess }) {
+  const [amount, setAmount] = useState(payment?.amount !== undefined && payment?.amount !== null ? String(payment.amount) : "");
+  const [planName, setPlanName] = useState(payment?.plan_name || "Daily Wash");
+  const [status, setStatus] = useState(payment?.status || "pending");
+  const [paymentMethod, setPaymentMethod] = useState(payment?.payment_method || "razorpay");
+  const [billNote, setBillNote] = useState(payment?.bill_note || "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (payment) {
+      setAmount(payment.amount !== undefined && payment.amount !== null ? String(payment.amount) : "");
+      setPlanName(payment.plan_name || "Daily Wash");
+      setStatus(payment.status || "pending");
+      setPaymentMethod(payment.payment_method || "razorpay");
+      setBillNote(payment.bill_note || "");
+    }
+  }, [payment]);
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    const numAmount = Number(amount);
+    if (!amount || isNaN(numAmount) || numAmount <= 0) {
+      return toast.error("Please enter a valid payment amount greater than ₹0");
+    }
+
+    setSaving(true);
+    try {
+      await api.patch(`/admin/billing/${payment.id}/edit`, {
+        amount: numAmount,
+        base_amount: numAmount,
+        plan_name: planName,
+        status: status,
+        payment_method: paymentMethod,
+        bill_note: billNote,
+      });
+
+      toast.success("Payment updated successfully!", ts);
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || "Failed to update payment");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
+      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)" }} onClick={onClose}>
+      <div className="bg-white rounded-2xl w-[95vw] sm:w-full max-w-md shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+        <div style={{ height: 4, background: "linear-gradient(90deg, #00d4ff, #0066ff)" }} />
+        
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              ✏️ Edit Payment #{payment?.id}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Customer: <span className="font-semibold text-slate-700">{payment?.customer_name || payment?.customer_email || "Customer"}</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"><X className="w-5 h-5" /></button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[78vh]">
+          
+          {/* Amount Field */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 block">
+              Amount (₹) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="1"
+              required
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="e.g. 1299"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-slate-50/50"
+            />
+          </div>
+
+          {/* Plan Name Field */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 block">
+              Plan Name
+            </label>
+            <input
+              type="text"
+              value={planName}
+              onChange={e => setPlanName(e.target.value)}
+              placeholder="e.g. Daily Wash"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Status Dropdown */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 block">
+              Status
+            </label>
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white"
+            >
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="captured">Captured</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+
+          {/* Payment Method Dropdown */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 block">
+              Payment Method
+            </label>
+            <select
+              value={paymentMethod}
+              onChange={e => setPaymentMethod(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white"
+            >
+              <option value="razorpay">Razorpay</option>
+              <option value="cash">Cash</option>
+              <option value="upi">UPI</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="card">Card</option>
+            </select>
+          </div>
+
+          {/* Bill Note */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 block">
+              Bill Note / Remarks <span className="text-slate-400 font-normal lowercase">(optional)</span>
+            </label>
+            <textarea
+              value={billNote}
+              onChange={e => setBillNote(e.target.value)}
+              rows={2}
+              placeholder="Add note for customer..."
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none resize-none"
+            />
+          </div>
+
+          {/* Footer Actions */}
+          <div className="pt-3 border-t border-slate-100 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 transition shadow-md hover:opacity-95"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /* ═══ Main PaymentsTable ═══ */
 export default function PaymentsTable() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editPayment, setEditPayment] = useState(null);
+  const [viewInvoiceId, setViewInvoiceId] = useState(null);
 
   const fetchPayments = () => {
     setLoading(true);
@@ -461,34 +637,41 @@ export default function PaymentsTable() {
                 <CreditCard className="w-12 h-12 text-slate-200 mx-auto mb-3" />
                 <p className="text-slate-400 font-medium">No payments yet</p>
               </td></tr>
-            ) : payments.map((p, i) => (
-              <tr key={p.id} className={`hover:bg-cyan-50/30 transition ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
-                <td className="px-5 py-3 text-slate-400">#{p.id}</td>
-                <td className="px-5 py-3">
-                  <p className="font-medium text-slate-900">{p.customer_name || "—"}</p>
-                  <p className="text-xs text-slate-400">{p.customer_email || ""}</p>
-                </td>
-                <td className="px-5 py-3 text-slate-600">{p.plan_name || "—"}</td>
-                <td className="px-5 py-3 text-slate-900 font-medium">₹{p.amount}</td>
-                <td className="px-5 py-3 text-slate-600 capitalize">{p.payment_method || "—"}</td>
-                <td className="px-5 py-3"><StatusBadge status={p.status} /></td>
-                <td className="px-5 py-3 text-slate-400 text-xs">
-                  {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
-                </td>
-                <td className="px-5 py-3 flex gap-2 items-center">
-                  {["pending", "created"].includes(p.status) && (
+            ) : payments.map((p, i) => {
+              const isPaid = ["paid", "captured", "success"].includes((p.status || "").toLowerCase());
+              return (
+                <tr key={p.id} className={`hover:bg-cyan-50/30 transition ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
+                  <td className="px-5 py-3 text-slate-400">#{p.id}</td>
+                  <td className="px-5 py-3">
+                    <p className="font-medium text-slate-900">{p.customer_name || "—"}</p>
+                    <p className="text-xs text-slate-400">{p.customer_email || ""}</p>
+                  </td>
+                  <td className="px-5 py-3 text-slate-600">{p.plan_name || "—"}</td>
+                  <td className="px-5 py-3 text-slate-900 font-medium">₹{p.amount}</td>
+                  <td className="px-5 py-3 text-slate-600 capitalize">{p.payment_method || "—"}</td>
+                  <td className="px-5 py-3"><StatusBadge status={p.status} /></td>
+                  <td className="px-5 py-3 text-slate-400 text-xs">
+                    {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
+                  </td>
+                  <td className="px-5 py-3 flex gap-2 items-center">
+                    {isPaid && (
+                      <button onClick={() => setViewInvoiceId(p.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 transition">
+                        <Receipt className="w-3.5 h-3.5" /> Invoice
+                      </button>
+                    )}
                     <button onClick={() => setEditPayment(p)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-cyan-300 text-cyan-600 hover:bg-cyan-50 transition">
                       <Pencil className="w-3.5 h-3.5" /> Edit
                     </button>
-                  )}
-                  <button onClick={() => handleDeletePayment(p)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition">
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+                    <button onClick={() => handleDeletePayment(p)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -496,7 +679,8 @@ export default function PaymentsTable() {
       {/* Modals */}
       <AnimatePresence>
         {showCreateModal && <BillModal mode="create" onClose={() => setShowCreateModal(false)} onSuccess={fetchPayments} />}
-        {editPayment && <BillModal mode="edit" editData={editPayment} onClose={() => setEditPayment(null)} onSuccess={fetchPayments} />}
+        {editPayment && <EditPaymentModal payment={editPayment} onClose={() => setEditPayment(null)} onSuccess={fetchPayments} />}
+        {viewInvoiceId && <InvoiceModal paymentId={viewInvoiceId} onClose={() => setViewInvoiceId(null)} />}
       </AnimatePresence>
     </motion.div>
   );

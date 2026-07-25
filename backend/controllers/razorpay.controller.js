@@ -1,12 +1,7 @@
 // controllers/razorpay.controller.js
-import Razorpay from "razorpay";
 import crypto from "crypto";
 import pool from "../config/db.js";
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+import razorpay from "../config/razorpay.js";
 
 // STEP 1 — Create Order
 export const createOrder = async (req, res) => {
@@ -55,6 +50,15 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
+    // Idempotency check: verify if razorpay_payment_id already exists in payments
+    const [existing] = await pool.query(
+      `SELECT id FROM payments WHERE razorpay_payment_id = ?`,
+      [razorpay_payment_id]
+    );
+    if (existing.length > 0) {
+      return res.json({ success: true, message: "Payment already verified and saved" });
+    }
+
     // Update subscription to active
     await pool.query(
       `UPDATE subscriptions SET
@@ -89,9 +93,11 @@ export const verifyPayment = async (req, res) => {
 export const handleWebhook = async (req, res) => {
   try {
     const signature = req.headers["x-razorpay-signature"];
+    // Use raw body buffer for correct signature verification
+    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
-      .update(JSON.stringify(req.body))
+      .update(rawBody)
       .digest("hex");
 
     if (signature !== expectedSignature) {

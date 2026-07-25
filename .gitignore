@@ -31,3 +31,5 @@ desktop.ini
 powershell.bat
 backend/scratch/
 frontend/.env.production
+mochawesome-report/
+frontend/mochawesome-report/

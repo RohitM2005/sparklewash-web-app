@@ -167,7 +167,7 @@ export const getCustomerDashboard = async (req, res) => {
     // ── Today's wash ──────────────────────────────────────────────────────────
     const today = now.toISOString().split("T")[0];
     const [todayWash] = await pool.execute(
-      `SELECT wr.*, v.vehicle_number
+      `SELECT wr.*, DATE_FORMAT(wr.wash_date, '%Y-%m-%d') as wash_date, v.vehicle_number
        FROM wash_records wr
        LEFT JOIN vehicles v ON wr.vehicle_id = v.id
        WHERE wr.user_id = ? AND wr.wash_date = ?
@@ -177,7 +177,7 @@ export const getCustomerDashboard = async (req, res) => {
 
     // ── Wash history (last 30) ────────────────────────────────────────────────
     const [washHistory] = await pool.execute(
-      `SELECT wr.*, v.vehicle_number, v.vehicle_type
+      `SELECT wr.*, DATE_FORMAT(wr.wash_date, '%Y-%m-%d') as wash_date, v.vehicle_number, v.vehicle_type
        FROM wash_records wr
        LEFT JOIN vehicles v ON wr.vehicle_id = v.id
        WHERE wr.user_id = ?

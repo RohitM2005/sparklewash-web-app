@@ -11,6 +11,7 @@ import {
   getUnpaidBills,
   payBill,
   verifyBillPayment,
+  getInvoiceDetails,
   confirmBooking,
 } from "../controllers/billing.controller.js";
 
@@ -26,6 +27,7 @@ router.get("/admin/billing/:payment_id/breakdown", ...admin, getBillBreakdown);
 router.get("/customer/billing/unpaid", protect, getUnpaidBills);
 router.post("/customer/billing/pay", protect, payBill);
 router.post("/customer/billing/verify", protect, verifyBillPayment);
+router.get("/customer/billing/invoice/:payment_id", protect, getInvoiceDetails);
 
 // ─── Booking Confirm (no Razorpay) ───
 router.post("/booking/confirm", protect, confirmBooking);

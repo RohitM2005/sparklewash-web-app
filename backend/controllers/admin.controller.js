@@ -101,8 +101,8 @@ export const getAllPayments = async (req, res) => {
     }
 
     const [payments] = await pool.execute(`
-      SELECT p.id, p.amount, p.status, p.payment_method,
-             p.razorpay_payment_id, p.paid_at, p.created_at,
+      SELECT p.id, p.user_id, p.subscription_id, p.amount, p.status, p.payment_method,
+             p.razorpay_payment_id, p.paid_at, p.created_at, p.bill_note, p.bill_month,
              u.full_name as customer_name, u.email as customer_email,
              s.plan_name
       FROM payments p

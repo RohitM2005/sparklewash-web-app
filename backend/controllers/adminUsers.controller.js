@@ -199,9 +199,12 @@ export const importUsers = async (req, res) => {
   }
 };
 
+import { backfillCustomerData } from "../utils/syncCustomerData.js";
+
 // Get customers (role=customer) with vehicle count + subscription status
 export const getCustomers = async (req, res) => {
   try {
+    await backfillCustomerData();
     const { search = "", startDate, endDate } = req.query;
     let query = `
       SELECT u.id, u.name, u.full_name, u.email, u.phone, u.address, u.status, u.created_at,

@@ -1,6 +1,7 @@
 import app from "./app.js";
 import dotenv from "dotenv";
 import setupDatabase from "./config/setupDatabase.js";
+import "./cron/subscriptionRenewal.cron.js";
 
 dotenv.config();
 

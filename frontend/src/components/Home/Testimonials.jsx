@@ -25,7 +25,13 @@ export default function TestimonialsSection() {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }} viewport={{ once: true }} className="text-center mb-14 sm:mb-16">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          viewport={{ once: true, margin: "0px 0px -50px 0px" }}
+          className="text-center mb-14 sm:mb-16"
+        >
           <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-green-50 text-green-700 text-xs sm:text-sm font-semibold mb-5 border border-green-100 tracking-wide">✦ Customer Love</span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-tight tracking-tight mb-4">
             Real People,{" "}
@@ -38,7 +44,13 @@ export default function TestimonialsSection() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 mb-12 sm:mb-14">
           {testimonials.map((t, index) => (
-            <motion.div key={t.name} initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08, duration: 0.45 }} viewport={{ once: true }}>
+            <motion.div
+              key={t.name}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.06, duration: 0.4, ease: "easeOut" }}
+              viewport={{ once: true, margin: "0px 0px -40px 0px" }}
+            >
               <div className="h-full bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 hover:border-transparent hover:shadow-2xl shadow-sm transition-all duration-300 hover:-translate-y-1 relative overflow-hidden group">
                 <div className={`absolute inset-0 bg-gradient-to-br ${t.color} opacity-0 group-hover:opacity-[0.03] transition-opacity rounded-2xl`} />
                 <div className="relative flex items-start gap-3.5 mb-4">
@@ -60,10 +72,22 @@ export default function TestimonialsSection() {
           ))}
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} viewport={{ once: true }} className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          viewport={{ once: true, margin: "0px 0px -40px 0px" }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
+        >
           {stats.map((stat, i) => (
-            <motion.div key={stat.label} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.08 }} viewport={{ once: true }}
-              className="text-center bg-white rounded-2xl px-4 py-5 sm:py-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05, duration: 0.35, ease: "easeOut" }}
+              viewport={{ once: true, margin: "0px 0px -30px 0px" }}
+              className="text-center bg-white rounded-2xl px-4 py-5 sm:py-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow"
+            >
               <div className="text-xl sm:text-2xl lg:text-3xl font-black bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-1.5">{stat.value}</div>
               <p className="text-slate-500 text-xs sm:text-sm font-medium">{stat.label}</p>
             </motion.div>

@@ -7,11 +7,15 @@ export const getWashHistory = async (req, res) => {
     const userId = req.user.id;
 
     const [rows] = await pool.execute(
-      `SELECT wr.*, v.vehicle_number, v.vehicle_type, v.vehicle_model
+      `SELECT wr.id, wr.subscription_id, wr.vehicle_id, wr.washer_id, wr.user_id,
+              DATE_FORMAT(wr.wash_date, '%Y-%m-%d') as wash_date,
+              wr.status, wr.started_at, wr.washed_at, wr.wash_duration_minutes,
+              wr.washer_note, wr.issue_type, wr.issue_note, wr.verified, wr.verified_at, wr.created_at,
+              v.vehicle_number, v.vehicle_type, v.vehicle_model
        FROM wash_records wr
        JOIN vehicles v ON wr.vehicle_id = v.id
        WHERE wr.user_id = ?
-       ORDER BY wr.created_at DESC`,
+       ORDER BY wr.wash_date DESC, wr.created_at DESC`,
       [userId]
     );
 
@@ -45,21 +49,34 @@ export const getWashHistoryByVehicle = async (req, res) => {
       return res.status(404).json({ message: "Vehicle not found" });
     }
 
-    const [rows] = await pool.execute(
-      `SELECT wr.wash_date, wr.status, wr.washer_note, wr.wash_duration_minutes,
-              wr.photo_url, wr.verified, wr.id
-       FROM wash_records wr
-       WHERE wr.vehicle_id = ? AND wr.user_id = ?
-       ORDER BY wr.wash_date DESC`,
-      [vehicleId, userId]
-    );
+    const { startDate, endDate } = req.query;
+    let query = `
+      SELECT DATE_FORMAT(wr.wash_date, '%Y-%m-%d') as wash_date,
+             wr.status, wr.washer_note, wr.issue_type, wr.issue_note,
+             wr.wash_duration_minutes, wr.verified, wr.id, wr.started_at, wr.washed_at
+      FROM wash_records wr
+      WHERE wr.vehicle_id = ?
+    `;
+    const params = [vehicleId];
+
+    if (startDate && endDate) {
+      query += " AND wr.wash_date BETWEEN ? AND ?";
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      query += " AND wr.wash_date >= ?";
+      params.push(startDate);
+    }
+
+    query += " ORDER BY wr.wash_date DESC";
+
+    const [rows] = await pool.execute(query, params);
 
     res.json({
       vehicle,
       washHistory: rows,
     });
   } catch (error) {
-    console.error("Get wash history by vehicle error:", error);
+    console.error("Get wash history by vehicle error (vehicleId:", req.params.vehicleId, "userId:", req.user?.id, "):", error);
     res.status(500).json({ message: "Failed to load wash history", error: error.message });
   }
 };

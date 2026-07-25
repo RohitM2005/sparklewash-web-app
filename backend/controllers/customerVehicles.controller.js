@@ -1,7 +1,5 @@
-// controllers/customerVehicles.controller.js
-// Customer-facing vehicle CRUD: list, add, edit, delete
-
 import pool from "../config/db.js";
+import { syncUserData } from "../utils/syncCustomerData.js";
 
 /* GET /api/customer/vehicles */
 export const getCustomerVehicles = async (req, res) => {
@@ -28,7 +26,10 @@ export const getCustomerVehicles = async (req, res) => {
 export const addCustomerVehicle = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { vehicle_number, vehicle_model, vehicle_type } = req.body;
+    const { vehicle_number, vehicle_model, vehicle_type, phone, address } = req.body;
+
+    // Sync any phone/address if passed
+    await syncUserData(userId, { phone, address });
 
     if (!vehicle_number || !vehicle_number.trim()) {
       return res.status(400).json({ success: false, message: "Vehicle number is required" });

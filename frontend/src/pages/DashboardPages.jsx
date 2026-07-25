@@ -3,7 +3,7 @@ import { Outlet, useOutletContext } from "react-router-dom";
 import {
   Menu, Car, Calendar, Bell,
   History, CreditCard, Receipt, Settings as SettingsIcon,
-  User, Shield, Trash2, Loader2, Eye, EyeOff,
+  User, Loader2, Trash2,
   ArrowLeft, X, ChevronDown, AlertCircle, AlertTriangle,
   CheckCircle2, Info, ChevronRight,
 } from "lucide-react";
@@ -18,6 +18,7 @@ import WashCalendar from "../components/Dashboard/WashCalendar";
 import SubscriptionCard from "../components/Dashboard/SubscriptionCard";
 import RenewSubscriptionBtn from "../components/Dashboard/RenewSubscriptionBtn";
 import Loader from "../components/common/Loader";
+import InvoiceModal from "../components/Billing/InvoiceModal";
 import { getDashboardData } from "../services/dashboard.service";
 import api from "../services/api";
 
@@ -369,6 +370,7 @@ export function WashHistory() {
       setVehicleDetail(res.data.vehicle || null);
       setWashRecords(res.data.washHistory || []);
     } catch (err) {
+      console.error("Failed to load wash history for vehicle", vehicleId, ":", err.response?.data || err.message);
       setError(err.response?.data?.message || "Failed to load wash history");
       setWashRecords([]);
     } finally {
@@ -377,7 +379,19 @@ export function WashHistory() {
   }, []);
 
   useEffect(() => {
-    if (selectedVehicleId) fetchVehicleHistory(selectedVehicleId);
+    if (selectedVehicleId) {
+      fetchVehicleHistory(selectedVehicleId);
+      const interval = setInterval(() => {
+        api.get(`/customer/wash-history/${selectedVehicleId}`)
+          .then(res => {
+            if (res.data.washHistory) {
+              setWashRecords(res.data.washHistory);
+            }
+          })
+          .catch(() => {});
+      }, 10000);
+      return () => clearInterval(interval);
+    }
   }, [selectedVehicleId, fetchVehicleHistory]);
 
   const handleVehicleChange = (e) => {
@@ -498,6 +512,91 @@ export function WashHistory() {
               />
             </div>
 
+            {/* ── Recent Wash Activity & Reported Issues ── */}
+            {!loadingHistory && washRecords.length > 0 && (
+              <div className="mt-6 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <span>📋</span> Recent Wash Activity & Notes
+                </h3>
+                <div className="space-y-3">
+                  {washRecords.slice(0, 15).map((r) => {
+                    const isCompleted = r.status === "completed";
+                    const isIssue = r.status === "issue_reported" || r.status === "skipped" || !!r.issue_type;
+                    const catInfo = r.issue_type ? issueCategoryMap[r.issue_type] || { label: r.issue_type.replace(/_/g, " "), emoji: "⚠️" } : null;
+
+                    return (
+                      <div
+                        key={r.id}
+                        className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors ${
+                          isCompleted
+                            ? "bg-green-50/50 border-green-200"
+                            : isIssue
+                            ? "bg-red-50/50 border-red-200"
+                            : "bg-slate-50 border-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                              isCompleted
+                                ? "bg-green-100 text-green-700"
+                                : isIssue
+                                ? "bg-red-100 text-red-700"
+                                : "bg-slate-200 text-slate-600"
+                            }`}
+                          >
+                            {isCompleted ? "✓" : isIssue ? "✕" : "•"}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-slate-900 text-sm">
+                                {r.wash_date
+                                  ? new Date(r.wash_date).toLocaleDateString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    })
+                                  : "—"}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                  isCompleted
+                                    ? "bg-green-100 text-green-800"
+                                    : isIssue
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }`}
+                              >
+                                {isCompleted
+                                  ? "Car Washed"
+                                  : isIssue
+                                  ? `Car Not Washed${catInfo ? ` (${catInfo.label})` : ""}`
+                                  : r.status}
+                              </span>
+                            </div>
+                            {(r.issue_note || r.washer_note) && (
+                              <p className="text-xs text-slate-600 mt-1 font-medium">
+                                <span className="text-slate-400">Note:</span> {r.issue_note || r.washer_note}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {r.washed_at && (
+                          <span className="text-xs text-slate-400 font-mono">
+                            {new Date(r.washed_at).toLocaleTimeString("en-IN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Empty history hint */}
             {!loadingHistory && !error && washRecords.length === 0 && (
               <div className="mt-4 flex items-start gap-2 text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-4">
@@ -511,6 +610,14 @@ export function WashHistory() {
     </div>
   );
 }
+
+const issueCategoryMap = {
+  car_not_available: { label: "Car Not Available" },
+  parking_locked:    { label: "Parking Locked" },
+  rain:              { label: "Rain Issue" },
+  customer_complaint:{ label: "Customer Issue" },
+  other:             { label: "Other Issue" },
+};
 
 /* ============================================ */
 /* BACK TO HOME BUTTON                          */
@@ -739,10 +846,27 @@ export function Vehicles() {
 /* ============================================ */
 
 function PaymentStatusBadge({ status }) {
-  const s = status || "pending";
-  const colors = { paid: "bg-green-50 text-green-700", success: "bg-green-50 text-green-700", captured: "bg-green-50 text-green-700", pending: "bg-amber-50 text-amber-700", created: "bg-amber-50 text-amber-700", failed: "bg-red-50 text-red-600" };
-  const dots = { paid: "bg-green-500", success: "bg-green-500", captured: "bg-green-500", pending: "bg-amber-500", created: "bg-amber-500", failed: "bg-red-500" };
-  return <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${colors[s]||colors.pending}`}><span className={`w-1.5 h-1.5 rounded-full ${dots[s]||dots.pending}`}/>{s}</span>;
+  const s = (status || "pending").toLowerCase();
+  const colors = {
+    paid: "bg-green-50 text-green-700 border border-green-200",
+    success: "bg-green-50 text-green-700 border border-green-200",
+    captured: "bg-green-50 text-green-700 border border-green-200",
+    pending: "bg-amber-50 text-amber-700 border border-amber-200",
+    created: "bg-amber-50 text-amber-700 border border-amber-200",
+    failed: "bg-red-50 text-red-600 border border-red-200",
+    cancelled: "bg-slate-100 text-slate-600 border border-slate-200",
+    refunded: "bg-purple-50 text-purple-700 border border-purple-200",
+  };
+  const dots = {
+    paid: "bg-green-500", success: "bg-green-500", captured: "bg-green-500",
+    pending: "bg-amber-500", created: "bg-amber-500",
+    failed: "bg-red-500", cancelled: "bg-slate-400", refunded: "bg-purple-500",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${colors[s] || colors.pending}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dots[s] || dots.pending}`} />{s}
+    </span>
+  );
 }
 
 export function Billing() {
@@ -751,26 +875,26 @@ export function Billing() {
   const [loading, setLoading] = useState(true);
   const [loadingBills, setLoadingBills] = useState(true);
   const [paying, setPaying] = useState(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
 
-  useEffect(() => {
-    // Fetch payment history
+  const fetchPaymentHistory = () => {
     getDashboardData()
       .then(data => setPayments(data?.payments || []))
       .catch(() => setPayments([]))
       .finally(() => setLoading(false));
-
-    // Fetch unpaid bills
-    api.get("/customer/billing/unpaid")
-      .then(res => setUnpaidBills(res.data.data || []))
-      .catch(() => setUnpaidBills([]))
-      .finally(() => setLoadingBills(false));
-  }, []);
+  };
 
   const fetchUnpaidBills = () => {
     api.get("/customer/billing/unpaid")
       .then(res => setUnpaidBills(res.data.data || []))
-      .catch(() => {});
+      .catch(() => setUnpaidBills([]))
+      .finally(() => setLoadingBills(false));
   };
+
+  useEffect(() => {
+    fetchPaymentHistory();
+    fetchUnpaidBills();
+  }, []);
 
   const handlePayBill = async (bill) => {
     setPaying(bill.payment_id);
@@ -799,6 +923,7 @@ export function Billing() {
             });
             toast.success("Bill paid successfully! 🎉", toastStyle);
             fetchUnpaidBills();
+            fetchPaymentHistory();
           } catch (err) {
             toast.error("Payment verification failed: " + (err.response?.data?.error || err.message));
           }
@@ -986,26 +1111,50 @@ export function Billing() {
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["Date", "Plan", "Amount", "Method", "Status"].map(h => (
+                  {["Date", "Plan", "Amount", "Method", "Status", "Invoice"].map(h => (
                     <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {payments.map((p, i) => (
-                  <tr key={p.id || i} className={`hover:bg-cyan-50/30 transition ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
-                    <td className="px-5 py-3 text-slate-600 text-xs">{p.paid_at ? new Date(p.paid_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN") : "—"}</td>
-                    <td className="px-5 py-3 text-slate-700 font-medium">{p.plan_name || "—"}</td>
-                    <td className="px-5 py-3 text-slate-900 font-medium">₹{p.amount || 0}</td>
-                    <td className="px-5 py-3 text-slate-600 capitalize">{p.payment_method || "—"}</td>
-                    <td className="px-5 py-3"><PaymentStatusBadge status={p.status} /></td>
-                  </tr>
-                ))}
+                {payments.map((p, i) => {
+                  const isPaid = ["paid", "captured", "success"].includes((p.status || "").toLowerCase());
+                  return (
+                    <tr key={p.id || i} className={`hover:bg-cyan-50/30 transition ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}>
+                      <td className="px-5 py-3 text-slate-600 text-xs">{p.paid_at ? new Date(p.paid_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN") : "—"}</td>
+                      <td className="px-5 py-3 text-slate-700 font-medium">{p.plan_name || "—"}</td>
+                      <td className="px-5 py-3 text-slate-900 font-medium">₹{p.amount || 0}</td>
+                      <td className="px-5 py-3 text-slate-600 capitalize">{p.payment_method || "—"}</td>
+                      <td className="px-5 py-3"><PaymentStatusBadge status={p.status} /></td>
+                      <td className="px-5 py-3">
+                        {isPaid ? (
+                          <button
+                            onClick={() => setSelectedInvoiceId(p.id)}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-600 hover:text-cyan-700 hover:underline bg-cyan-50 border border-cyan-200 px-2.5 py-1 rounded-lg transition"
+                          >
+                            <Receipt className="w-3.5 h-3.5" />
+                            <span>View Invoice</span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Invoice Modal */}
+      {selectedInvoiceId && (
+        <InvoiceModal
+          paymentId={selectedInvoiceId}
+          onClose={() => setSelectedInvoiceId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1015,45 +1164,29 @@ export function Billing() {
 /* 6. SETTINGS (Full DB-connected)              */
 /* ============================================ */
 
-const settingsTabs = [
-  { id: "profile", label: "Profile", icon: User },
-  { id: "security", label: "Security", icon: Shield },
-];
+/* ============================================ */
+/* 6. SETTINGS (Full DB-connected)              */
+/* ============================================ */
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState("profile");
   const ctx = useOutletContext();
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Toaster position="top-right" />
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center gap-3 mb-6 sm:mb-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0">
             <SettingsIcon className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Settings</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Manage your account preferences</p>
+            <p className="text-sm text-slate-500 mt-0.5">Manage your profile information</p>
           </div>
         </div>
 
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-6 overflow-x-auto">
-          {settingsTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition whitespace-nowrap flex-1 justify-center ${activeTab === tab.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6">
-          {activeTab === "profile" && <ProfileTab onUserUpdate={ctx?.setUser} />}
-          {activeTab === "security" && <SecurityTab />}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+          <ProfileTab onUserUpdate={ctx?.setUser} />
         </div>
       </div>
     </div>
@@ -1062,7 +1195,7 @@ export function Settings() {
 
 /* ── Profile Tab ── */
 function ProfileTab({ onUserUpdate }) {
-  const [form, setForm] = useState({ full_name: "", phone: "", email: "" });
+  const [form, setForm] = useState({ full_name: "", phone: "", email: "", address: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -1070,214 +1203,89 @@ function ProfileTab({ onUserUpdate }) {
     api.get("/customer/profile")
       .then(res => {
         const p = res.data.profile || {};
-        setForm({ full_name: p.full_name || "", phone: p.phone || "", email: p.email || "" });
+        setForm({
+          full_name: p.full_name || p.name || "",
+          phone: p.phone || "",
+          email: p.email || "",
+          address: p.address || "",
+        });
       })
       .catch(() => toast.error("Failed to load profile"))
       .finally(() => setLoading(false));
   }, []);
 
   const handleSave = async () => {
-    if (!form.full_name.trim()) return toast.error("Name is required");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return toast.error("Valid email required");
-    if (form.phone && !/^[6-9]\d{9}$/.test(form.phone.replace(/[\s\-+91]/g, ""))) return toast.error("Valid Indian phone required");
+    if (!form.full_name.trim()) return toast.error("Full name is required");
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      return toast.error("Valid email address is required");
+    }
+    const rawPhone = form.phone ? form.phone.trim() : "";
+    const cleanPhone = rawPhone.replace(/^(\+91|91)/, "").replace(/[\s\-]/g, "");
+    if (rawPhone && !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return toast.error("Valid 10-digit Indian phone number is required");
+    }
 
     setSaving(true);
     try {
-      await api.patch("/customer/profile", form);
-      toast.success("Profile updated successfully", toastStyle);
-      onUserUpdate?.(prev => ({ ...prev, full_name: form.full_name, email: form.email }));
+      const payload = {
+        full_name: form.full_name.trim(),
+        email: form.email.trim(),
+        phone: cleanPhone || rawPhone || "",
+        address: form.address ? form.address.trim() : "",
+      };
+      const res = await api.patch("/customer/profile", payload);
+      const updated = res.data.profile || res.data.data || payload;
+      toast.success(res.data.message || "Profile updated successfully", toastStyle);
+      onUserUpdate?.(prev => ({
+        ...prev,
+        full_name: updated.full_name || updated.name || form.full_name,
+        name: updated.name || updated.full_name || form.full_name,
+        email: updated.email || form.email,
+        phone: updated.phone || form.phone,
+        address: updated.address || form.address,
+      }));
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update");
+      toast.error(err.response?.data?.message || "Failed to update profile");
     } finally { setSaving(false); }
   };
 
   if (loading) return <div className="animate-pulse space-y-4">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}</div>;
 
   return (
-    <div className="space-y-5">
-      <h3 className="font-semibold text-slate-900">Profile Information</h3>
-      <div className="grid sm:grid-cols-2 gap-4">
+    <div className="space-y-6">
+      <div className="border-b border-slate-100 pb-4">
+        <h3 className="font-semibold text-lg text-slate-900">Profile Information</h3>
+        <p className="text-sm text-slate-500 mt-1">Update your personal details below</p>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-5">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
           <input type="text" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition" placeholder="John Doe" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number</label>
           <input type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="+91 XXXXX XXXXX" />
+            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition" placeholder="+91 98765 43210" />
         </div>
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
           <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition" placeholder="user@example.com" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Address</label>
+          <textarea value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} rows={2}
+            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition resize-none" placeholder="Flat No, Building, Street, Area, City" />
         </div>
       </div>
-      <button onClick={handleSave} disabled={saving}
-        className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition disabled:opacity-50 flex items-center gap-2">
-        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-        {saving ? "Saving..." : "Save Changes"}
-      </button>
-    </div>
-  );
-}
-
-/* ── Notifications Tab ── */
-function NotificationsTab() {
-  const [prefs, setPrefs] = useState({ wash_reminders: true, subscription_alerts: true, promotions: true });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get("/customer/notification-preferences")
-      .then(res => setPrefs(res.data.preferences || {}))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleToggle = async (key) => {
-    const newVal = !prefs[key];
-    setPrefs(p => ({ ...p, [key]: newVal }));
-    try {
-      await api.patch("/customer/notification-preferences", { [key]: newVal });
-      toast.success("Preferences saved", toastStyle);
-    } catch { toast.error("Failed to save"); }
-  };
-
-  if (loading) return <div className="animate-pulse space-y-4">{[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl" />)}</div>;
-
-  const items = [
-    { key: "wash_reminders", label: "Wash reminders", desc: "Get notified before your scheduled wash" },
-    { key: "subscription_alerts", label: "Subscription alerts", desc: "Renewal and expiry notifications" },
-    { key: "promotions", label: "Promotions", desc: "Offers and discounts from SparkleWash" },
-  ];
-
-  return (
-    <div className="space-y-2">
-      <h3 className="font-semibold text-slate-900 mb-4">Notification Preferences</h3>
-      {items.map((item) => (
-        <div key={item.key} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
-          <div>
-            <p className="text-sm font-medium text-slate-900">{item.label}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
-          </div>
-          <button type="button" onClick={() => handleToggle(item.key)}
-            className={`w-10 h-6 rounded-full relative transition-colors duration-200 ml-4 flex-shrink-0 ${prefs[item.key] ? "bg-cyan-500" : "bg-slate-200"}`}>
-            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform duration-200 shadow ${prefs[item.key] ? "translate-x-[18px]" : "translate-x-0.5"}`} />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Security Tab ── */
-function SecurityTab() {
-  const [form, setForm] = useState({ current_password: "", new_password: "", confirm_password: "" });
-  const [saving, setSaving] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const handleChangePassword = async () => {
-    if (!form.current_password || !form.new_password) return toast.error("All fields required");
-    if (form.new_password.length < 8) return toast.error("Password must be at least 8 characters");
-    if (form.new_password !== form.confirm_password) return toast.error("Passwords do not match");
-
-    setSaving(true);
-    try {
-      await api.patch("/customer/change-password", { current_password: form.current_password, new_password: form.new_password });
-      toast.success("Password updated", toastStyle);
-      setForm({ current_password: "", new_password: "", confirm_password: "" });
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to change password");
-    } finally { setSaving(false); }
-  };
-
-  const handleDeleteAccount = async () => {
-    setDeleting(true);
-    try {
-      await api.delete("/customer/account");
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
-      toast.success("Account deleted", toastStyle);
-      window.location.href = "/";
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete account");
-    } finally { setDeleting(false); }
-  };
-
-  return (
-    <div className="space-y-4">
-      <h3 className="font-semibold text-slate-900">Security Settings</h3>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Current Password</label>
-        <div className="relative">
-          <input type={showCurrent ? "text" : "password"} value={form.current_password} onChange={e => setForm(p => ({ ...p, current_password: e.target.value }))}
-            className="w-full px-3 py-2.5 pr-10 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
-          <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" tabIndex={-1}>
-            {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">New Password</label>
-        <div className="relative">
-          <input type={showNew ? "text" : "password"} value={form.new_password} onChange={e => setForm(p => ({ ...p, new_password: e.target.value }))}
-            className="w-full px-3 py-2.5 pr-10 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
-          <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" tabIndex={-1}>
-            {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm New Password</label>
-        <div className="relative">
-          <input type={showConfirm ? "text" : "password"} value={form.confirm_password} onChange={e => setForm(p => ({ ...p, confirm_password: e.target.value }))}
-            className="w-full px-3 py-2.5 pr-10 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="••••••••" />
-          <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" tabIndex={-1}>
-            {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
-      </div>
-      <button onClick={handleChangePassword} disabled={saving}
-        className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition disabled:opacity-50 flex items-center gap-2">
-        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-        {saving ? "Updating..." : "Update Password"}
-      </button>
-
-      {/* Danger Zone */}
-      <div className="pt-4 border-t border-slate-200">
-        <h4 className="font-medium text-red-600 mb-2 flex items-center gap-2 text-sm">
-          <Trash2 className="w-4 h-4" /> Danger Zone
-        </h4>
-        <p className="text-sm text-slate-500 mb-3">Permanently delete your account and all associated data.</p>
-        <button onClick={() => setShowDeleteModal(true)}
-          className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 transition">
-          Delete Account
+      <div className="pt-2">
+        <button onClick={handleSave} disabled={saving}
+          className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm">
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+          {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
-          onClick={() => setShowDeleteModal(false)}>
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div style={{ height: 4, background: "linear-gradient(90deg, #ef4444, #dc2626)", borderRadius: "8px 8px 0 0", margin: "-24px -24px 16px -24px" }} />
-            <h3 className="text-lg font-bold mb-2">Delete Account</h3>
-            <p className="text-sm text-slate-600 mb-6">This will permanently delete your account and all vehicles, subscriptions, wash records, and payments. This action cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium hover:bg-slate-50">Cancel</button>
-              <button onClick={handleDeleteAccount} disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 flex items-center justify-center gap-2">
-                {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {deleting ? "Deleting..." : "Yes, Delete My Account"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

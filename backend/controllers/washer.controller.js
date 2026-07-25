@@ -6,23 +6,28 @@ import { getUserById } from "../models/user.model.js";
 import { comparePassword, hashPassword } from "../utils/hash.js";
 import pool from "../config/db.js";
 
+const ensureTodayWashRecords = async (washerId) => {
+  const today = new Date().toISOString().slice(0, 10);
+  await pool.execute(`
+    INSERT IGNORE INTO wash_records
+      (subscription_id, vehicle_id, washer_id, user_id, wash_date, status)
+    SELECT s.id, s.vehicle_id, s.washer_id, s.user_id, ?, 'pending'
+    FROM subscriptions s
+    WHERE s.washer_id = ? AND s.status = 'active'
+      AND NOT EXISTS (
+        SELECT 1 FROM wash_records wr
+        WHERE wr.subscription_id = s.id AND wr.wash_date = ?
+      )
+  `, [today, washerId, today]);
+};
+
 export const getWasherDashboard = async (req, res) => {
   try {
     const washerId = req.user.id;
     const today = new Date().toISOString().slice(0, 10);
 
     // Auto-create today's wash records for all active subscriptions assigned to this washer
-    await pool.execute(`
-      INSERT IGNORE INTO wash_records
-        (subscription_id, vehicle_id, washer_id, user_id, wash_date, status)
-      SELECT s.id, s.vehicle_id, s.washer_id, s.user_id, ?, 'pending'
-      FROM subscriptions s
-      WHERE s.washer_id = ? AND s.status = 'active'
-        AND NOT EXISTS (
-          SELECT 1 FROM wash_records wr
-          WHERE wr.subscription_id = s.id AND wr.wash_date = ?
-        )
-    `, [today, washerId, today]);
+    await ensureTodayWashRecords(washerId);
 
     // Get today's vehicles with wash status
     const [vehicles] = await pool.execute(`
@@ -66,6 +71,8 @@ export const getTodayVehicles = async (req, res) => {
     const washerId = req.user.id;
     const today = new Date().toISOString().slice(0, 10);
 
+    await ensureTodayWashRecords(washerId);
+
     const [vehicles] = await pool.execute(`
       SELECT wr.id as record_id, wr.status as wash_status,
              wr.started_at, wr.washed_at,
@@ -78,7 +85,6 @@ export const getTodayVehicles = async (req, res) => {
       ORDER BY wr.status ASC
     `, [washerId, today]);
 
-    console.log("=== GET TODAY VEHICLES ===", vehicles);
     res.json({ vehicles });
   } catch (error) {
     console.error("Get today vehicles error:", error);
@@ -90,7 +96,6 @@ export const startWash = async (req, res) => {
   try {
     const { recordId } = req.params;
     const washerId = req.user.id;
-    console.log("=== START WASH ===", { recordId, washerId });
 
     const [result] = await pool.execute(
       "UPDATE wash_records SET status = 'washing', started_at = NOW() WHERE id = ? AND washer_id = ?",
@@ -113,32 +118,53 @@ export const completeWash = async (req, res) => {
     const { recordId } = req.params;
     const washerId = req.user.id;
     const { washer_note } = req.body;
+    const today = new Date().toISOString().slice(0, 10);
 
-    // Calculate duration
-    const [records] = await pool.execute(
-      "SELECT started_at FROM wash_records WHERE id = ? AND washer_id = ?",
+    // Try finding existing record by recordId
+    let [records] = await pool.execute(
+      "SELECT * FROM wash_records WHERE id = ? AND washer_id = ?",
       [recordId, washerId]
     );
 
+    // Fallback: try finding by recordId as vehicle/subscription ID for today
     if (!records.length) {
+      [records] = await pool.execute(
+        `SELECT * FROM wash_records
+         WHERE (vehicle_id = ? OR subscription_id = ?) AND washer_id = ? AND wash_date = ?`,
+        [recordId, recordId, washerId, today]
+      );
+    }
+
+    // If record doesn't exist yet, check subscription and insert new record
+    if (!records.length) {
+      const [[sub]] = await pool.execute(
+        `SELECT * FROM subscriptions WHERE (id = ? OR vehicle_id = ?) AND washer_id = ? AND status = 'active'`,
+        [recordId, recordId, washerId]
+      );
+      if (sub) {
+        const [insertRes] = await pool.execute(
+          `INSERT INTO wash_records
+             (subscription_id, vehicle_id, washer_id, user_id, wash_date, status, washed_at, verified, verified_at, washer_note)
+           VALUES (?, ?, ?, ?, ?, 'completed', NOW(), 1, NOW(), ?)`,
+          [sub.id, sub.vehicle_id, washerId, sub.user_id, today, washer_note || null]
+        );
+        return res.json({ success: true, message: "Wash completed", recordId: insertRes.insertId });
+      }
       return res.status(404).json({ success: false, message: "Wash record not found" });
     }
 
-    const duration = records[0].started_at
-      ? Math.round((Date.now() - new Date(records[0].started_at).getTime()) / 60000)
+    const rec = records[0];
+    const duration = rec.started_at
+      ? Math.round((Date.now() - new Date(rec.started_at).getTime()) / 60000)
       : null;
 
-    const [result] = await pool.execute(
+    await pool.execute(
       `UPDATE wash_records SET status = 'completed', washed_at = NOW(),
         verified = 1, verified_at = NOW(),
         washer_note = ?, wash_duration_minutes = ?
-       WHERE id = ? AND washer_id = ?`,
-      [washer_note || null, duration, recordId, washerId]
+       WHERE id = ?`,
+      [washer_note || null, duration, rec.id]
     );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Wash record not found" });
-    }
 
     res.json({ success: true, message: "Wash completed" });
   } catch (error) {
@@ -172,17 +198,49 @@ export const skipWash = async (req, res) => {
 export const reportIssue = async (req, res) => {
   try {
     const { recordId } = req.params;
-    const { issue_type, issue_note } = req.body;
+    const { issue_type } = req.body;
+    const issue_note = req.body.issue_note || req.body.note || null;
     const washerId = req.user.id;
+    const today = new Date().toISOString().slice(0, 10);
 
-    const [result] = await pool.execute(
-      "UPDATE wash_records SET status = 'issue_reported', issue_type = ?, issue_note = ? WHERE id = ? AND washer_id = ?",
-      [issue_type || null, issue_note || null, recordId, washerId]
+    // Try finding existing record by recordId
+    let [records] = await pool.execute(
+      "SELECT * FROM wash_records WHERE id = ? AND washer_id = ?",
+      [recordId, washerId]
     );
 
-    if (result.affectedRows === 0) {
+    // Fallback: try finding by recordId as vehicle/subscription ID for today
+    if (!records.length) {
+      [records] = await pool.execute(
+        `SELECT * FROM wash_records
+         WHERE (vehicle_id = ? OR subscription_id = ?) AND washer_id = ? AND wash_date = ?`,
+        [recordId, recordId, washerId, today]
+      );
+    }
+
+    // If record doesn't exist yet, check subscription and insert new record
+    if (!records.length) {
+      const [[sub]] = await pool.execute(
+        `SELECT * FROM subscriptions WHERE (id = ? OR vehicle_id = ?) AND washer_id = ? AND status = 'active'`,
+        [recordId, recordId, washerId]
+      );
+      if (sub) {
+        const [insertRes] = await pool.execute(
+          `INSERT INTO wash_records
+             (subscription_id, vehicle_id, washer_id, user_id, wash_date, status, issue_type, issue_note)
+           VALUES (?, ?, ?, ?, ?, 'issue_reported', ?, ?)`,
+          [sub.id, sub.vehicle_id, washerId, sub.user_id, today, issue_type || null, issue_note]
+        );
+        return res.json({ success: true, message: "Issue reported", recordId: insertRes.insertId });
+      }
       return res.status(404).json({ success: false, message: "Wash record not found" });
     }
+
+    const rec = records[0];
+    await pool.execute(
+      `UPDATE wash_records SET status = 'issue_reported', issue_type = ?, issue_note = ? WHERE id = ?`,
+      [issue_type || null, issue_note, rec.id]
+    );
 
     res.json({ success: true, message: "Issue reported" });
   } catch (error) {

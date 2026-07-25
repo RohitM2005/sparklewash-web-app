@@ -6,6 +6,14 @@ import {
 } from "date-fns";
 import { CheckCircle2, XCircle, Minus, ChevronLeft, ChevronRight } from "lucide-react";
 
+const issueTypeLabels = {
+  car_not_available: "Car Not Available",
+  parking_locked: "Parking Locked",
+  rain: "Rain Issue",
+  customer_complaint: "Customer Issue",
+  other: "Other Issue",
+};
+
 export default function WashCalendar({ washRecords = [], currentMonth, onMonthChange }) {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -14,23 +22,36 @@ export default function WashCalendar({ washRecords = [], currentMonth, onMonthCh
   const washMap = useMemo(() => {
     const map = {};
     washRecords.forEach((r) => {
-      const key = format(new Date(r.wash_date), "yyyy-MM-dd");
-      map[key] = r.status;
+      if (!r.wash_date) return;
+      let key = "";
+      if (typeof r.wash_date === "string") {
+        key = r.wash_date.split("T")[0];
+      } else if (r.wash_date instanceof Date) {
+        key = format(r.wash_date, "yyyy-MM-dd");
+      } else {
+        key = format(new Date(r.wash_date), "yyyy-MM-dd");
+      }
+      map[key] = r;
     });
     return map;
   }, [washRecords]);
 
-  const getWashState = (date) => {
+  const getWashRecord = (date) => {
     const key = format(date, "yyyy-MM-dd");
-    const status = washMap[key];
+    return washMap[key];
+  };
+
+  const getWashState = (date) => {
+    const rec = getWashRecord(date);
+    const status = rec?.status;
     const today = startOfDay(new Date());
     const dayStart = startOfDay(date);
     const isFuture = isAfter(dayStart, today);
 
     if (status === "completed") return "completed";
+    if (status === "issue_reported" || status === "skipped" || status === "missed") return "missed";
     if (isFuture) return "neutral";
     if (isToday(date) && !status) return "neutral";
-    if (status && ["pending", "missed", "skipped", "issue_reported"].includes(status)) return "missed";
     if (!status && isBefore(dayStart, today)) return "neutral";
     return "neutral";
   };
@@ -85,9 +106,18 @@ export default function WashCalendar({ washRecords = [], currentMonth, onMonthCh
         ))}
         {days.map((day) => {
           const state = getWashState(day);
+          const rec = getWashRecord(day);
+          const categoryLabel = rec?.issue_type ? (issueTypeLabels[rec.issue_type] || rec.issue_type.replace(/_/g, " ")) : "";
+          const tooltipText = rec
+            ? rec.issue_type
+              ? `${categoryLabel}${rec.issue_note ? `: ${rec.issue_note}` : ""}`
+              : rec.washer_note || (rec.status === "completed" ? "Car Washed" : rec.status === "issue_reported" ? "Car Not Washed" : "")
+            : "";
+
           return (
             <div
               key={day.toISOString()}
+              title={tooltipText}
               className={`relative flex flex-col items-center justify-start gap-1 sm:gap-1.5 rounded-md sm:rounded-lg text-center transition-all ${
                 isToday(day) ? "ring-2 ring-cyan-500 bg-cyan-50"
                 : state === "completed" ? "bg-green-50"
@@ -101,7 +131,7 @@ export default function WashCalendar({ washRecords = [], currentMonth, onMonthCh
                 {format(day, "d")}
               </span>
               {/* Bigger status icons */}
-              <div>
+              <div className="flex flex-col items-center">
                 {state === "completed" && <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />}
                 {state === "missed" && <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />}
                 {state === "neutral" && <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300" />}

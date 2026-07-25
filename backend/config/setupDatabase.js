@@ -229,6 +229,8 @@ const setupDatabase = async () => {
       "ALTER TABLE payments ADD COLUMN bill_note TEXT DEFAULT NULL",
       "ALTER TABLE payments ADD COLUMN sent_by_admin INT DEFAULT NULL",
       "ALTER TABLE payments ADD COLUMN admin_edited_amount DECIMAL(10,2) DEFAULT NULL",
+      "ALTER TABLE payments MODIFY COLUMN status VARCHAR(50) DEFAULT 'pending'",
+      "ALTER TABLE payments MODIFY COLUMN payment_method VARCHAR(50) DEFAULT 'razorpay'",
       // Manual stats override columns on users table
       "ALTER TABLE users ADD COLUMN manual_total_washes INT DEFAULT NULL",
       "ALTER TABLE users ADD COLUMN manual_this_month INT DEFAULT NULL",
@@ -273,32 +275,40 @@ const setupDatabase = async () => {
 
 async function seedDefaultAccounts() {
   try {
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin@5001";
+    const washerPassword = process.env.SEED_WASHER_PASSWORD || "Washer@123";
+
+    const adminPass = await hashPassword(adminPassword);
+    const washerPass = await hashPassword(washerPassword);
+    const adminPhone = process.env.ADMIN_PHONE || "0000000000";
+
     const [existingAdmins] = await pool.execute(
       "SELECT id FROM users WHERE email IN ('ajayparale9@gmail.com', 'sparklewash5001@gmail.com') LIMIT 1"
     );
 
     if (existingAdmins.length > 0) {
-      console.log("👑 Default accounts already exist");
+      // Sync admin passwords with current SEED_ADMIN_PASSWORD
+      await pool.execute(
+        "UPDATE users SET password = ? WHERE role = 'admin'",
+        [adminPass]
+      );
+      console.log("👑 Default admin accounts password updated to match SEED_ADMIN_PASSWORD");
       return;
     }
-
-    const adminPass = await hashPassword("Admin@123");
-    const washerPass = await hashPassword("Washer@123");
 
     await pool.execute(
       `INSERT IGNORE INTO users
         (name, full_name, email, phone, password, role, status)
        VALUES
-        ('Ajay Parale', 'Ajay Parale', 'ajayparale9@gmail.com', '9309225001', ?, 'admin', 'active'),
-        ('SparkleWash Owner', 'SparkleWash Owner', 'sparklewash5001@gmail.com', '9309225001', ?, 'admin', 'active'),
+        ('Ajay Parale', 'Ajay Parale', 'ajayparale9@gmail.com', ?, ?, 'admin', 'active'),
+        ('SparkleWash Owner', 'SparkleWash Owner', 'sparklewash5001@gmail.com', ?, ?, 'admin', 'active'),
         ('Ravi Kumar', 'Ravi Kumar', 'washer1@sparklewash.com', '9000000001', ?, 'washer', 'active'),
         ('Suresh Patil', 'Suresh Patil', 'washer2@sparklewash.com', '9000000002', ?, 'washer', 'active')`,
-      [adminPass, adminPass, washerPass, washerPass]
+      [adminPhone, adminPass, adminPhone, adminPass, washerPass, washerPass]
     );
 
     console.log("✅ Default accounts seeded");
   } catch (error) {
-    // Ignore duplicate key errors
     if (error.code !== "ER_DUP_ENTRY") {
       console.error("Seed error:", error.message);
     }

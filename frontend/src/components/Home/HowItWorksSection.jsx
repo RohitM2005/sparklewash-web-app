@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { motion } from "framer-motion";
 import { CheckCircle, CreditCard, CalendarDays, Sparkles, Play } from "lucide-react";
+import VideoModal from "../common/VideoModal";
 
 function HowItWorksSection() {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
-  const videoRef = useRef(null);
 
   const steps = [
     {
@@ -36,34 +37,17 @@ function HowItWorksSection() {
     },
   ];
 
-  // Pause video and re-enable scroll when closing
-  useEffect(() => {
-    if (isVideoOpen) {
-      document.body.style.overflow = "hidden";
-      if (videoRef.current) {
-        videoRef.current.currentTime = 0;
-        videoRef.current.play().catch(() => {});
-      }
-    } else {
-      document.body.style.overflow = "";
-      if (videoRef.current) {
-        videoRef.current.pause();
-      }
-    }
-
-    return () => {
-      document.body.style.overflow = "";
-      if (videoRef.current) {
-        videoRef.current.pause();
-      }
-    };
-  }, [isVideoOpen]);
-
   return (
     <section id="how-it-works">
       <div className="max-w-6xl mx-auto">
         {/* Heading */}
-        <div className="text-center mb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          viewport={{ once: true, margin: "0px 0px -50px 0px" }}
+          className="text-center mb-12"
+        >
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">
             How It Works
           </h2>
@@ -79,13 +63,17 @@ function HowItWorksSection() {
             <Play className="w-4 h-4" />
             Watch How It Works
           </button>
-        </div>
+        </motion.div>
 
         {/* Steps */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {steps.map((step) => (
-            <div
+          {steps.map((step, index) => (
+            <motion.div
               key={step.id}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.06, duration: 0.4, ease: "easeOut" }}
+              viewport={{ once: true, margin: "0px 0px -40px 0px" }}
               className="bg-white shadow-md rounded-2xl p-6 text-center hover:shadow-xl transition duration-300"
             >
               <div className="flex justify-center mb-4">
@@ -99,40 +87,16 @@ function HowItWorksSection() {
               <p className="text-gray-500 text-sm">
                 {step.description}
               </p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
 
-      {/* Video Modal */}
-      {isVideoOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl overflow-hidden max-w-3xl w-full shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h3 className="font-semibold text-slate-900 text-sm sm:text-base">
-                See SparkleWash in Action
-              </h3>
-              <button
-                onClick={() => setIsVideoOpen(false)}
-                className="text-slate-500 hover:text-slate-800 text-sm"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="relative bg-black">
-              <video
-                ref={videoRef}
-                controls
-                className="w-full h-[220px] sm:h-[320px] lg:h-[420px] object-cover"
-              >
-                <source src="/assets/how-it-works.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Shared Video Modal */}
+      <VideoModal
+        isOpen={isVideoOpen}
+        onClose={() => setIsVideoOpen(false)}
+      />
     </section>
   );
 }
