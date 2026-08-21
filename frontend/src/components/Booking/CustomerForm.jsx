@@ -8,17 +8,39 @@ const TIME_SLOTS = [
   { value: "evening", emoji: "🌆", label: "Evening", sub: "5PM–8PM" },
 ];
 
-const Field = ({ id, label, required, children }) => (
+// --- Validation helpers ---
+const validators = {
+  customer_name: (v) => (!v?.trim() ? "Full name is required" : ""),
+  customer_phone: (v) =>
+    !v ? "Phone number is required" : !/^[6-9]\d{9}$/.test(v) ? "Enter a valid 10-digit phone number (starting 6-9)" : "",
+  customer_email: (v) =>
+    !v ? "Email is required" : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "Enter a valid email address" : "",
+  address: (v) => (!v?.trim() ? "Address is required" : ""),
+  city: (v) => (!v?.trim() ? "City is required" : ""),
+  preferred_date: (v) => (!v ? "Start date is required" : ""),
+};
+
+const Field = ({ id, label, required, error, children }) => (
   <div>
     <label htmlFor={id} className="text-slate-700 text-sm font-medium">
       {label} {required && <span className="text-red-400">*</span>}
     </label>
     {children}
+    {error && (
+      <motion.p
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-red-500 text-xs mt-1"
+      >
+        {error}
+      </motion.p>
+    )}
   </div>
 );
 
 export default function CustomerForm({ formData, updateFormData }) {
   const [loaded, setLoaded] = useState(false);
+  const [touched, setTouched] = useState({});
 
   // FIX 2: Auto-fill from DB on mount
   useEffect(() => {
@@ -41,6 +63,24 @@ export default function CustomerForm({ formData, updateFormData }) {
   const today = new Date().toISOString().split("T")[0];
   const handlePhone = (v) => updateFormData("customer_phone", v.replace(/\D/g, "").slice(0, 10));
 
+  // Mark a field as touched on blur
+  const handleBlur = (field) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  // Get error message for a field (only if touched)
+  const getError = (field) => {
+    if (!touched[field]) return "";
+    const validator = validators[field];
+    return validator ? validator(safe[field]) : "";
+  };
+
+  // Compute border class: red if error, default otherwise
+  const inputBorder = (field) =>
+    getError(field)
+      ? "border-red-400 focus:ring-red-400"
+      : "border-slate-200 focus:ring-cyan-500";
+
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
       <Toaster position="top-right" />
@@ -53,24 +93,30 @@ export default function CustomerForm({ formData, updateFormData }) {
       <div className="bg-slate-50 rounded-xl p-4 space-y-4">
         <p className="text-[10px] sm:text-xs font-semibold text-cyan-600 uppercase tracking-wide">Contact Information</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field id="customer_name" label="Full Name" required>
+          <Field id="customer_name" label="Full Name" required error={getError("customer_name")}>
             <input id="customer_name" placeholder="Raj Sharma" value={safe.customer_name}
-              onChange={(e) => updateFormData("customer_name", e.target.value)} required
-              className="mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition" />
+              onChange={(e) => updateFormData("customer_name", e.target.value)}
+              onBlur={() => handleBlur("customer_name")}
+              required
+              className={`mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${inputBorder("customer_name")}`} />
           </Field>
-          <Field id="customer_phone" label="Phone Number" required>
+          <Field id="customer_phone" label="Phone Number" required error={getError("customer_phone")}>
             <div className="mt-2 flex">
               <span className="inline-flex items-center px-3 border border-r-0 rounded-l-lg bg-slate-100 text-slate-500 text-sm font-medium">+91</span>
               <input id="customer_phone" placeholder="9876543210" value={safe.customer_phone}
-                onChange={(e) => handlePhone(e.target.value)} maxLength={10} required
-                className="flex-1 border rounded-r-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition bg-white" />
+                onChange={(e) => handlePhone(e.target.value)}
+                onBlur={() => handleBlur("customer_phone")}
+                maxLength={10} required
+                className={`flex-1 border rounded-r-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition bg-white ${inputBorder("customer_phone")}`} />
             </div>
           </Field>
           <div className="sm:col-span-2">
-            <Field id="customer_email" label="Email Address" required>
+            <Field id="customer_email" label="Email Address" required error={getError("customer_email")}>
               <input id="customer_email" type="email" placeholder="raj@example.com" value={safe.customer_email}
-                onChange={(e) => updateFormData("customer_email", e.target.value)} required
-                className="mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition" />
+                onChange={(e) => updateFormData("customer_email", e.target.value)}
+                onBlur={() => handleBlur("customer_email")}
+                required
+                className={`mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${inputBorder("customer_email")}`} />
             </Field>
           </div>
         </div>
@@ -79,15 +125,19 @@ export default function CustomerForm({ formData, updateFormData }) {
       {/* Location */}
       <div className="bg-slate-50 rounded-xl p-4 space-y-4">
         <p className="text-[10px] sm:text-xs font-semibold text-cyan-600 uppercase tracking-wide">Wash Location</p>
-        <Field id="address" label="Full Address" required>
+        <Field id="address" label="Full Address" required error={getError("address")}>
           <textarea id="address" placeholder="Flat/House No., Street, Area, Landmark" value={safe.address}
-            onChange={(e) => updateFormData("address", e.target.value)} required rows={2}
-            className="mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition resize-none" />
+            onChange={(e) => updateFormData("address", e.target.value)}
+            onBlur={() => handleBlur("address")}
+            required rows={2}
+            className={`mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition resize-none ${inputBorder("address")}`} />
         </Field>
-        <Field id="city" label="City" required>
+        <Field id="city" label="City" required error={getError("city")}>
           <input id="city" placeholder="Pune" value={safe.city}
-            onChange={(e) => updateFormData("city", e.target.value)} required
-            className="mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition" />
+            onChange={(e) => updateFormData("city", e.target.value)}
+            onBlur={() => handleBlur("city")}
+            required
+            className={`mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${inputBorder("city")}`} />
         </Field>
       </div>
 
@@ -95,10 +145,12 @@ export default function CustomerForm({ formData, updateFormData }) {
       <div className="bg-slate-50 rounded-xl p-4 space-y-4">
         <p className="text-[10px] sm:text-xs font-semibold text-cyan-600 uppercase tracking-wide">Schedule</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field id="preferred_date" label="Start Date" required>
+          <Field id="preferred_date" label="Start Date" required error={getError("preferred_date")}>
             <input id="preferred_date" type="date" min={today} value={safe.preferred_date}
-              onChange={(e) => updateFormData("preferred_date", e.target.value)} required
-              className="mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition" />
+              onChange={(e) => updateFormData("preferred_date", e.target.value)}
+              onBlur={() => handleBlur("preferred_date")}
+              required
+              className={`mt-2 w-full border bg-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${inputBorder("preferred_date")}`} />
           </Field>
             <div>
             <label className="text-slate-700 text-sm font-medium">Preferred Time <span className="text-red-400">*</span></label>

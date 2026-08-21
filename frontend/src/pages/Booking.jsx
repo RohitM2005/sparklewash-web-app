@@ -79,12 +79,13 @@ export default function Booking() {
   };
 
   const validateDetailsStep = async () => {
-    const { customer_name, customer_phone, customer_email, address } = formData;
+    const { customer_name, customer_phone, customer_email, address, city } = formData;
 
     if (!customer_name?.trim()) { toast.error("Full name is required"); return false; }
     if (!customer_phone || !/^[6-9]\d{9}$/.test(customer_phone)) { toast.error("Valid 10-digit phone number required"); return false; }
     if (!customer_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) { toast.error("Valid email required"); return false; }
     if (!address?.trim()) { toast.error("Address is required"); return false; }
+    if (!city?.trim()) { toast.error("City is required"); return false; }
 
     // Save updated details to DB — exact field names matching users table columns
     const payload = {
@@ -200,6 +201,7 @@ export default function Booking() {
         formData.customer_phone &&
         formData.customer_email &&
         formData.address &&
+        formData.city &&
         formData.preferred_date &&
         formData.preferred_time
       );
