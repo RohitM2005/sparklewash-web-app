@@ -97,6 +97,7 @@ export default function Booking() {
 
     console.log("Saving customer details — payload:", payload);
 
+    setIsSubmitting(true);
     try {
       const response = await api.patch("/customer/profile", payload);
       console.log("✅ Profile save response:", response.data);
@@ -106,11 +107,14 @@ export default function Booking() {
       const msg = err.response?.data?.sqlMessage || err.response?.data?.message || err.response?.data?.error || "Failed to save details";
       toast.error("Save failed: " + msg);
       // Non-blocking — allow proceeding even if save fails
+    } finally {
+      setIsSubmitting(false);
     }
     return true;
   };
 
   const nextStep = async () => {
+    if (isSubmitting) return;
     if (currentStep === 1) navigate("/booking/details");
     else if (currentStep === 2) {
       const valid = await validateDetailsStep();
@@ -131,6 +135,7 @@ export default function Booking() {
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
@@ -299,7 +304,7 @@ export default function Booking() {
 
               <button
                 onClick={nextStep}
-                disabled={!isStepValid()}
+                disabled={!isStepValid() || isSubmitting}
                 className="w-full sm:w-auto px-6 py-2 rounded-md text-white bg-gradient-to-r from-cyan-500 to-blue-600 disabled:opacity-50"
               >
                 Continue
