@@ -70,20 +70,23 @@ export const getTodayVehicles = async (req, res) => {
   try {
     const washerId = req.user.id;
     const today = new Date().toISOString().slice(0, 10);
+    const showAll = req.query.all === "true";
 
     await ensureTodayWashRecords(washerId);
 
-    const [vehicles] = await pool.execute(`
+    const query = `
       SELECT wr.id as record_id, wr.status as wash_status,
-             wr.started_at, wr.washed_at,
+             wr.started_at, wr.washed_at, wr.wash_date,
              v.vehicle_number, v.vehicle_type, v.vehicle_model,
              u.full_name as customer_name, u.phone as customer_phone, u.address
       FROM wash_records wr
       JOIN vehicles v ON wr.vehicle_id = v.id
       JOIN users u ON wr.user_id = u.id
-      WHERE wr.washer_id = ? AND wr.wash_date = ?
-      ORDER BY wr.status ASC
-    `, [washerId, today]);
+      WHERE wr.washer_id = ?${showAll ? "" : " AND wr.wash_date = ?"}
+      ORDER BY wr.wash_date DESC, wr.status ASC
+    `;
+    const params = showAll ? [washerId] : [washerId, today];
+    const [vehicles] = await pool.execute(query, params);
 
     res.json({ vehicles });
   } catch (error) {

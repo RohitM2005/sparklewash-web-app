@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Loader2, Phone, MapPin, Clock, AlertTriangle, CheckCircle2, Car, Sparkles
+  ArrowLeft, Loader2, Phone, MapPin, Clock, AlertTriangle, CheckCircle2, Car, Sparkles, CalendarDays
 } from "lucide-react";
 import { getTodayVehicles, startWash, reportIssue } from "../../services/washer.service";
 
@@ -23,10 +23,12 @@ export default function TodayVehiclesList() {
   const [filter, setFilter] = useState("all");
   const [confirmStart, setConfirmStart] = useState(null);
   const [showIssue, setShowIssue] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
-  const load = async () => {
+  const load = async (all = showAll) => {
     try {
-      const res = await getTodayVehicles();
+      setLoading(true);
+      const res = await getTodayVehicles(all);
       const mappedVehicles = (res.vehicles || []).map(v => ({
         ...v,
         status: v.wash_status || v.status
@@ -98,16 +100,29 @@ export default function TodayVehiclesList() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-slate-900 leading-tight">Today's Vehicles</h1>
-            <p className="text-xs text-slate-500">Assigned wash queue</p>
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-900 leading-tight">{showAll ? "All Jobs" : "Today's Vehicles"}</h1>
+            <p className="text-xs text-slate-500">{showAll ? "All wash history" : "Assigned wash queue"}</p>
           </div>
         </div>
 
-        {remaining > 0 && (
-          <span className="bg-amber-100 border border-amber-200 text-amber-800 rounded-full px-3 py-1 text-xs sm:text-sm font-bold shadow-sm">
-            ⚡ {remaining} remaining
-          </span>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => { const next = !showAll; setShowAll(next); setFilter("all"); load(next); }}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95 shadow-sm ${
+              showAll
+                ? "bg-cyan-500 text-white shadow-cyan-500/20"
+                : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <CalendarDays className="w-4 h-4" />
+            <span>{showAll ? "All Jobs" : "Today's Jobs"}</span>
+          </button>
+          {remaining > 0 && !showAll && (
+            <span className="bg-amber-100 border border-amber-200 text-amber-800 rounded-full px-3 py-1 text-xs sm:text-sm font-bold shadow-sm">
+              ⚡ {remaining} remaining
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Horizontally Scrollable Filter Tabs */}
@@ -146,7 +161,7 @@ export default function TodayVehiclesList() {
             <Car className="w-7 h-7" />
           </div>
           <p className="text-slate-800 font-bold text-base">
-            {filter === "all" ? "No vehicles assigned today" : `No ${filter} vehicles`}
+            {filter === "all" ? (showAll ? "No wash records found" : "No vehicles assigned today") : `No ${filter} vehicles`}
           </p>
           <p className="text-slate-400 text-xs mt-1">Check back later or refresh to fetch updated assignments.</p>
         </div>

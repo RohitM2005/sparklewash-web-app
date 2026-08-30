@@ -7,8 +7,8 @@ export const getWasherDashboard = async () => {
   return res.data;
 };
 
-export const getTodayVehicles = async () => {
-  const res = await api.get("/washer/vehicles/today");
+export const getTodayVehicles = async (showAll = false) => {
+  const res = await api.get(`/washer/vehicles/today${showAll ? "?all=true" : ""}`);
   return res.data;
 };
 
